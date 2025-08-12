@@ -20,6 +20,19 @@ app.static_folder = 'static'
 app.static_url_path = ''
 CORS(app)  # Povolí CORS pro React aplikaci
 
+# Přidáme error handler pro 500 chyby
+@app.errorhandler(500)
+def internal_error(error):
+    import traceback
+    error_details = traceback.format_exc()
+    print(f"❌ 500 ERROR: {error}")
+    print(f"📋 TRACEBACK: {error_details}")
+    return jsonify({
+        'error': str(error),
+        'details': error_details,
+        'type': 'Internal Server Error'
+    }), 500
+
 # Konfigurace
 UPLOAD_FOLDER = 'temp_uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp'}
