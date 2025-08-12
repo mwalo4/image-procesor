@@ -14,5 +14,5 @@ COPY . .
 # Expose port
 EXPOSE 5000
 
-# Spuštění aplikace
-CMD ["python", "api_server.py"] 
+# Spuštění aplikace s Gunicorn (produkční WSGI server)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "api_server:app"] 
