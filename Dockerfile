@@ -14,5 +14,5 @@ COPY . .
 # Expose port
 EXPOSE 8080
 
-# Spuštění Flask serveru přímo
-CMD ["python", "api_server.py"] 
+# Spuštění s Gunicorn (produkční WSGI server)
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "--timeout", "120", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "api_server:app"] 

@@ -257,8 +257,12 @@ if __name__ == '__main__':
     print("  - GET  /api/config - Získání konfigurace")
     print("  - POST /api/config - Aktualizace konfigurace")
     
-    print("🏭 Spouštím Flask server...")
-    print(f"🌐 Port: {port}")
-    
-    # Spustíme Flask server vždy
-    app.run(debug=False, host='0.0.0.0', port=port) 
+    # V produkci se Flask server nespouští, Gunicorn se spustí z Dockerfile
+    if not os.environ.get('PORT'):
+        print("🛠️  Vývojové prostředí - Spouštím Flask development server")
+        print(f"🌐 Port: {port}")
+        app.run(debug=False, host='0.0.0.0', port=port)
+    else:
+        print("🏭 Produkční prostředí - Gunicorn se spustí automaticky")
+        print(f"🌐 Port: {port}")
+        print("✅ API je připraveno pro Gunicorn") 
