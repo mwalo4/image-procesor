@@ -1,0 +1,12 @@
+{
+  "target_size": [1000, 1000],
+  "background_color": "#F3F3F3",
+  "quality": 95,
+  "white_threshold": 240,
+  "product_size_ratio": 0.75,
+  "auto_upscale": false,
+  "upscale_threshold": 800,
+  "upscale_method": "multi-scale",
+  "input_dir": "input_images",
+  "output_dir": "processed_images"
+} 
