@@ -262,6 +262,7 @@ if __name__ == '__main__':
         print("🏭 Produkční prostředí - Gunicorn bude spuštěn automaticky")
         print(f"🌐 Port: {port}")
         # V produkci necháme Gunicorn spustit server
+        # Nespouštíme Flask server, protože Gunicorn se spustí z start.sh
     else:
         print("🛠️  Vývojové prostředí - Spouštím Flask development server")
         app.run(debug=False, host='0.0.0.0', port=port) 
