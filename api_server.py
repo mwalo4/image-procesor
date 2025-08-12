@@ -258,8 +258,9 @@ if __name__ == '__main__':
     print("  - POST /api/config - Aktualizace konfigurace")
     
     # Použijeme Gunicorn pro produkci, Flask development server pro lokální vývoj
-    if os.environ.get('RAILWAY_ENVIRONMENT'):
+    if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT'):
         print("🏭 Produkční prostředí - Gunicorn bude spuštěn automaticky")
+        print(f"🌐 Port: {port}")
     else:
         print("🛠️  Vývojové prostředí - Spouštím Flask development server")
         app.run(debug=False, host='0.0.0.0', port=port) 
