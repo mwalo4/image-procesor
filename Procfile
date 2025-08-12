@@ -1,1 +1,1 @@
-web: python api_server.py 
+web: source venv/bin/activate && python api_server.py 
