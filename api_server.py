@@ -45,21 +45,35 @@ def allowed_file(filename):
 
 def get_processor_config(custom_config=None):
     """Vrátí konfiguraci pro procesor"""
+    # Načteme konfiguraci z config.json
+    try:
+        with open('config.json', 'r') as f:
+            file_config = json.load(f)
+            print(f"📋 Načtena konfigurace z config.json: {file_config}")
+    except Exception as e:
+        print(f"⚠️ Chyba při načítání config.json: {e}")
+        file_config = {}
+    
     default_config = {
         'target_width': 1000,
         'target_height': 1000,
         'quality': 95,
         'background_color': '#F3F3F3',
-        'white_threshold': 240,
+        'white_threshold': 220,
         'product_size_ratio': 0.75,
         'auto_upscale': False,
         'upscale_threshold': 800,
         'upscale_method': 'multi-scale'
     }
     
+    # Aktualizujeme s konfigurací z souboru
+    default_config.update(file_config)
+    
+    # Aktualizujeme s custom konfigurací z requestu
     if custom_config:
         default_config.update(custom_config)
     
+    print(f"🎯 Finální konfigurace: {default_config}")
     return default_config
 
 @app.route('/api/health', methods=['GET'])
