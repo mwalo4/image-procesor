@@ -176,6 +176,8 @@ def index():
     """Hlavní stránka s frontendem"""
     return send_from_directory('static', 'index.html')
 
+
+
 @app.route('/api/config', methods=['GET'])
 def get_default_config():
     """Vrátí výchozí konfiguraci"""
