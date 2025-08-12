@@ -127,6 +127,8 @@ def process_single_image():
             output_filename = f"processed_{filename.rsplit('.', 1)[0]}.jpg"
             output_path = os.path.join(temp_dir, output_filename)
             
+            print(f"🔍 DEBUG: Očekávám výstupní soubor: {output_path}")
+            
             # Zpracování obrázku
             processor_config = get_processor_config(custom_config)
             processor_config['input_dir'] = temp_dir
@@ -140,6 +142,14 @@ def process_single_image():
             
             # Zpracování
             success = processor.process_image(Path(input_path))
+            
+            # Kontrola, jestli výstupní soubor existuje
+            if not os.path.exists(output_path):
+                print(f"❌ CHYBA: Výstupní soubor neexistuje: {output_path}")
+                # Zkusíme najít jiné soubory ve složce
+                files_in_dir = os.listdir(temp_dir)
+                print(f"🔍 DEBUG: Soubory ve složce: {files_in_dir}")
+                return jsonify({'error': 'Output file not found'}), 500
             
             print(f"Processing result: {success}")
             
