@@ -1,14 +1,11 @@
 [phases.setup]
-nixPkgs = ["python311"]
+nixPkgs = ["python311", "python311Packages.pip"]
 
 [phases.install]
-cmds = [
-  "python -m venv venv",
-  "source venv/bin/activate && pip install -r requirements.txt"
-]
+cmds = ["pip install --user -r requirements.txt"]
 
 [phases.build]
 cmds = ["echo 'Build completed'"]
 
 [start]
-cmd = "source venv/bin/activate && python api_server.py" 
+cmd = "python api_server.py" 
