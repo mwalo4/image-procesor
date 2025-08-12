@@ -8,6 +8,7 @@ COPY requirements.txt .
 # Instalace závislostí
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir Pillow numpy tqdm
+RUN pip install --no-cache-dir Flask Flask-CORS werkzeug
 
 # Kopírování aplikace
 COPY . .
