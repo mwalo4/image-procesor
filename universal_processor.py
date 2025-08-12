@@ -389,15 +389,13 @@ class UniversalProcessor:
         """Zpracuje jeden obrázek - univerzální přístup s auto-upscalingem"""
         print(f"🔍 DEBUG: Začínám zpracování {image_path}")
         try:
-            # Vytvoření výstupní cesty
-            relative_path = image_path.relative_to(self.input_dir)
-            output_path = self.output_dir / relative_path
+            # Vytvoření výstupní cesty s "processed_" prefixem
+            filename = image_path.name
+            output_filename = f"processed_{filename.rsplit('.', 1)[0]}.jpg"
+            output_path = self.output_dir / output_filename
             
             # Vytvoření složek pokud neexistují
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Změna přípony na .jpg
-            output_path = output_path.with_suffix('.jpg')
             
             # Načtení obrázku
             print(f"🔍 DEBUG: Otevírám obrázek {image_path}")
