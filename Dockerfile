@@ -7,6 +7,7 @@ COPY requirements.txt .
 
 # Instalace závislostí
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir Pillow numpy tqdm
 
 # Kopírování aplikace
 COPY . .
