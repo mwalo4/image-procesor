@@ -386,7 +386,7 @@ class UniversalProcessor:
             return img
     
     def process_image(self, image_path: Path) -> bool:
-        """Zpracuje jeden obrázek - jednoduchá změna pozadí"""
+        """Zpracuje jeden obrázek - univerzální přístup s auto-upscalingem"""
         try:
             # Vytvoření výstupní cesty
             relative_path = image_path.relative_to(self.input_dir)
@@ -406,8 +406,14 @@ class UniversalProcessor:
                 
                 print(f"Zpracovávám {image_path.name}: {img.width}x{img.height}px")
                 
-                # Jednoduchá změna pozadí - žádný resize, žádná detekce produktu
-                processed_img = self.change_background(img)
+                # Krok 0: Automatický upscale malých obrázků
+                img = self.auto_upscale_image(img)
+                
+                # Krok 1: Chytře změníme velikost a vycentrujeme produkt
+                processed_img = self.smart_resize_and_center(img)
+                
+                # Krok 2: Změníme bílé pozadí na šedé
+                processed_img = self.change_background(processed_img)
                 
                 # Uložení s vysokou kvalitou
                 processed_img.save(

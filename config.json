@@ -2,7 +2,7 @@
   "target_size": [1000, 1000],
   "background_color": "#F3F3F3",
   "quality": 95,
-  "white_threshold": 220,
+  "white_threshold": 250,
   "product_size_ratio": 0.75,
   "auto_upscale": false,
   "upscale_threshold": 800,
