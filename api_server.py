@@ -221,6 +221,16 @@ def script_js():
 
 
 
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """Vrátí poslední logy pro debugging"""
+    try:
+        with open('app.log', 'r') as f:
+            logs = f.read()
+        return jsonify({'logs': logs})
+    except FileNotFoundError:
+        return jsonify({'logs': 'No log file found'})
+
 @app.route('/api/config', methods=['GET'])
 def get_default_config():
     """Vrátí výchozí konfiguraci"""
@@ -314,7 +324,14 @@ if __name__ == '__main__':
     
     # Nastavíme logging pro debugging
     import logging
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('app.log'),
+            logging.StreamHandler()
+        ]
+    )
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     
