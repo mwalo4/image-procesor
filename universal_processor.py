@@ -367,26 +367,29 @@ class UniversalProcessor:
                 int(hex_color[4:6], 16)
             )
             
+            print(f"🎨 Změna pozadí na barvu: {new_bg_color}")
+            
             # Konverze do numpy array
             img_array = np.array(img)
             
-            # Metoda 1: Detekce světlých pixelů (původní)
+            # Metoda 1: Detekce světlých pixelů (původní) - AGRESIVNĚJŠÍ
             white_mask = np.all(img_array >= self.white_threshold, axis=2)
+            print(f"🔍 Metoda 1 (bílé pixely >= {self.white_threshold}): {np.sum(white_mask)} pixelů")
             
-            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny
-            shadow_threshold = 200  # Nižší práh pro stíny
+            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny - AGRESIVNĚJŠÍ
+            shadow_threshold = 180  # Sníženo z 200 na 180
             shadow_mask = np.all(img_array >= shadow_threshold, axis=2)
+            print(f"🔍 Metoda 2 (stíny >= {shadow_threshold}): {np.sum(shadow_mask)} pixelů")
             
-            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing)
-            # Vypočítáme průměr a směrodatnou odchylku pro každý pixel
+            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing) - AGRESIVNĚJŠÍ
             mean_values = np.mean(img_array, axis=2)
             std_values = np.std(img_array, axis=2)
             
-            # Pixely s nízkým kontrastem (anti-aliasing) mají nízkou směrodatnou odchylku
-            low_contrast_mask = (std_values < 15) & (mean_values > 180)
+            # Snížené prahy pro detekci anti-aliasingu
+            low_contrast_mask = (std_values < 20) & (mean_values > 160)  # Zvýšeno z 15/180 na 20/160
+            print(f"🔍 Metoda 3 (anti-aliasing): {np.sum(low_contrast_mask)} pixelů")
             
-            # Metoda 4: Detekce pixelů podobných okolním (gradient detection)
-            # Vytvoříme masku pro pixely, které jsou podobné svým sousedům
+            # Metoda 4: Detekce pixelů podobných okolním (gradient detection) - AGRESIVNĚJŠÍ
             from scipy import ndimage
             
             # Vypočítáme gradient (změnu intenzity)
@@ -394,26 +397,42 @@ class UniversalProcessor:
             gradient_y = ndimage.sobel(mean_values, axis=0)
             gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
             
-            # Pixely s nízkým gradientem jsou pravděpodobně pozadí
-            low_gradient_mask = gradient_magnitude < 10
+            # Zvýšený práh pro gradient - detekujeme více pozadí
+            low_gradient_mask = gradient_magnitude < 15  # Zvýšeno z 10 na 15
+            print(f"🔍 Metoda 4 (nízký gradient < 15): {np.sum(low_gradient_mask)} pixelů")
             
             # Metoda 5: Detekce světlých oblastí pomocí morfologických operací
-            # Vytvoříme masku pro velké světlé oblasti
             large_white_areas = ndimage.binary_opening(white_mask, structure=np.ones((5,5)))
             large_white_areas = ndimage.binary_closing(large_white_areas, structure=np.ones((10,10)))
+            print(f"🔍 Metoda 5 (velké světlé oblasti): {np.sum(large_white_areas)} pixelů")
             
-            # Kombinujeme všechny masky
-            # Použijeme vážený přístup - různé masky mají různou důležitost
+            # Metoda 6: NOVÁ - Detekce světlých pixelů s velmi nízkým prahem
+            very_light_threshold = 150  # Velmi agresivní detekce
+            very_light_mask = np.all(img_array >= very_light_threshold, axis=2)
+            print(f"🔍 Metoda 6 (velmi světlé >= {very_light_threshold}): {np.sum(very_light_mask)} pixelů")
+            
+            # Metoda 7: NOVÁ - Detekce pixelů s vysokou průměrnou hodnotou
+            high_mean_mask = mean_values > 170  # Detekuje světlé pixely podle průměru
+            print(f"🔍 Metoda 7 (vysoký průměr > 170): {np.sum(high_mean_mask)} pixelů")
+            
+            # Kombinujeme všechny masky - AGRESIVNĚJŠÍ VÁHY
             combined_mask = (
                 white_mask * 1.0 +                    # Původní bílé pixely (100% jistota)
-                shadow_mask * 0.8 +                   # Stíny (80% jistota)
-                low_contrast_mask * 0.6 +             # Anti-aliasing (60% jistota)
-                low_gradient_mask * 0.4 +             # Nízký gradient (40% jistota)
-                large_white_areas * 0.9               # Velké světlé oblasti (90% jistota)
-            ) > 0.5  # Prahová hodnota pro kombinaci
+                shadow_mask * 0.9 +                   # Stíny (zvýšeno z 0.8 na 0.9)
+                low_contrast_mask * 0.8 +             # Anti-aliasing (zvýšeno z 0.6 na 0.8)
+                low_gradient_mask * 0.6 +             # Nízký gradient (zvýšeno z 0.4 na 0.6)
+                large_white_areas * 0.95 +            # Velké světlé oblasti (zvýšeno z 0.9 na 0.95)
+                very_light_mask * 0.85 +              # Velmi světlé pixely (nové)
+                high_mean_mask * 0.7                  # Vysoký průměr (nové)
+            ) > 0.4  # Sníženo z 0.5 na 0.4 - agresivnější kombinace
+            
+            total_detected = np.sum(combined_mask)
+            total_pixels = img_array.shape[0] * img_array.shape[1]
+            detection_percentage = (total_detected / total_pixels) * 100
+            
+            print(f"🎯 Celkem detekováno: {total_detected} pixelů ({detection_percentage:.1f}% obrázku)")
             
             # Aplikujeme masku s plynulým přechodem
-            # Místo náhlé změny barvy použijeme alpha blending
             alpha = np.where(combined_mask, 1.0, 0.0)
             
             # Vytvoříme nový obrázek s plynulým přechodem
@@ -429,10 +448,11 @@ class UniversalProcessor:
             # Konverze zpět na PIL Image
             result = Image.fromarray(result_array)
             
+            print(f"✅ Pozadí změněno úspěšně!")
             return result
             
         except Exception as e:
-            print(f"Chyba při změně barvy pozadí: {e}")
+            print(f"❌ Chyba při změně barvy pozadí: {e}")
             return img
     
     def process_image(self, image_path: Path) -> bool:
