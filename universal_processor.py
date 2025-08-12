@@ -356,9 +356,11 @@ class UniversalProcessor:
             print(f"Chyba při hledání bounding box: {e}")
             return None
     
-    def change_background(self, img: Image.Image) -> Image.Image:
-        """Změní bílé pozadí na zadanou barvu s pokročilou detekcí"""
+    def ai_change_background(self, img: Image.Image) -> Image.Image:
+        """AI-powered změna pozadí pomocí RemBG"""
         try:
+            print(f"🤖 AI-powered změna pozadí na barvu: {self.background_color}")
+            
             # Konverze hex barvy na RGB
             hex_color = self.background_color.lstrip('#')
             new_bg_color = (
@@ -367,93 +369,54 @@ class UniversalProcessor:
                 int(hex_color[4:6], 16)
             )
             
-            print(f"🎨 Změna pozadí na barvu: {new_bg_color}")
+            # Import RemBG
+            from rembg import remove
+            import numpy as np
             
-            # Konverze do numpy array
+            # Konverze PIL Image na numpy array
             img_array = np.array(img)
             
-            # Metoda 1: Detekce světlých pixelů (původní) - KONZERVATIVNĚJŠÍ
-            white_mask = np.all(img_array >= self.white_threshold, axis=2)
-            print(f"🔍 Metoda 1 (bílé pixely >= {self.white_threshold}): {np.sum(white_mask)} pixelů")
+            print(f"🔍 AI zpracovává obrázek: {img_array.shape}")
             
-            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny - KONZERVATIVNĚJŠÍ
-            shadow_threshold = 200  # Zvýšeno z 180 na 200
-            shadow_mask = np.all(img_array >= shadow_threshold, axis=2)
-            print(f"🔍 Metoda 2 (stíny >= {shadow_threshold}): {np.sum(shadow_mask)} pixelů")
+            # AI odstranění pozadí
+            print("🤖 RemBG odstraňuje pozadí...")
+            output_array = remove(img_array)
             
-            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing) - KONZERVATIVNĚJŠÍ
-            mean_values = np.mean(img_array, axis=2)
-            std_values = np.std(img_array, axis=2)
+            print(f"✅ AI dokončeno, výsledek: {output_array.shape}")
             
-            # Konzervativnější prahy pro detekci anti-aliasingu
-            low_contrast_mask = (std_values < 12) & (mean_values > 190)  # Sníženo z 20/160 na 12/190
-            print(f"🔍 Metoda 3 (anti-aliasing): {np.sum(low_contrast_mask)} pixelů")
+            # Vytvoření nového pozadí
+            bg_image = Image.new('RGB', img.size, new_bg_color)
             
-            # Metoda 4: Detekce pixelů podobných okolním (gradient detection) - KONZERVATIVNĚJŠÍ
-            from scipy import ndimage
+            # Konverze output_array zpět na PIL Image
+            if output_array.shape[2] == 4:  # RGBA
+                # Máme alpha kanál - použijeme ho pro compositing
+                product_img = Image.fromarray(output_array, 'RGBA')
+                
+                # Vytvoříme nové pozadí s alpha kanálem
+                bg_rgba = Image.new('RGBA', img.size, new_bg_color + (255,))
+                
+                # Compositing s alpha blending
+                result = Image.alpha_composite(bg_rgba, product_img)
+                result = result.convert('RGB')  # Konverze zpět na RGB
+                
+            else:  # RGB
+                # Nemáme alpha kanál - použijeme jednoduché vložení
+                product_img = Image.fromarray(output_array, 'RGB')
+                bg_image.paste(product_img, (0, 0))
+                result = bg_image
             
-            # Vypočítáme gradient (změnu intenzity)
-            gradient_x = ndimage.sobel(mean_values, axis=1)
-            gradient_y = ndimage.sobel(mean_values, axis=0)
-            gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
-            
-            # Konzervativnější gradient - detekujeme méně pozadí
-            low_gradient_mask = gradient_magnitude < 8  # Sníženo z 15 na 8
-            print(f"🔍 Metoda 4 (nízký gradient < 8): {np.sum(low_gradient_mask)} pixelů")
-            
-            # Metoda 5: Detekce světlých oblastí pomocí morfologických operací
-            large_white_areas = ndimage.binary_opening(white_mask, structure=np.ones((5,5)))
-            large_white_areas = ndimage.binary_closing(large_white_areas, structure=np.ones((10,10)))
-            print(f"🔍 Metoda 5 (velké světlé oblasti): {np.sum(large_white_areas)} pixelů")
-            
-            # Metoda 6: NOVÁ - Detekce světlých pixelů s velmi nízkým prahem - KONZERVATIVNĚJŠÍ
-            very_light_threshold = 180  # Zvýšeno z 150 na 180
-            very_light_mask = np.all(img_array >= very_light_threshold, axis=2)
-            print(f"🔍 Metoda 6 (velmi světlé >= {very_light_threshold}): {np.sum(very_light_mask)} pixelů")
-            
-            # Metoda 7: NOVÁ - Detekce pixelů s vysokou průměrnou hodnotou - KONZERVATIVNĚJŠÍ
-            high_mean_mask = mean_values > 200  # Zvýšeno z 170 na 200
-            print(f"🔍 Metoda 7 (vysoký průměr > 200): {np.sum(high_mean_mask)} pixelů")
-            
-            # Kombinujeme všechny masky - KONZERVATIVNĚJŠÍ VÁHY
-            combined_mask = (
-                white_mask * 1.0 +                    # Původní bílé pixely (100% jistota)
-                shadow_mask * 0.7 +                   # Stíny (sníženo z 0.9 na 0.7)
-                low_contrast_mask * 0.6 +             # Anti-aliasing (sníženo z 0.8 na 0.6)
-                low_gradient_mask * 0.3 +             # Nízký gradient (sníženo z 0.6 na 0.3)
-                large_white_areas * 0.9 +             # Velké světlé oblasti (sníženo z 0.95 na 0.9)
-                very_light_mask * 0.6 +               # Velmi světlé pixely (sníženo z 0.85 na 0.6)
-                high_mean_mask * 0.4                  # Vysoký průměr (sníženo z 0.7 na 0.4)
-            ) > 0.6  # Zvýšeno z 0.4 na 0.6 - konzervativnější kombinace
-            
-            total_detected = np.sum(combined_mask)
-            total_pixels = img_array.shape[0] * img_array.shape[1]
-            detection_percentage = (total_detected / total_pixels) * 100
-            
-            print(f"🎯 Celkem detekováno: {total_detected} pixelů ({detection_percentage:.1f}% obrázku)")
-            
-            # Aplikujeme masku s plynulým přechodem
-            alpha = np.where(combined_mask, 1.0, 0.0)
-            
-            # Vytvoříme nový obrázek s plynulým přechodem
-            result_array = img_array.copy()
-            
-            # Pro pixely, které mají být změněny, použijeme alpha blending
-            for i in range(3):  # RGB kanály
-                result_array[:,:,i] = (
-                    img_array[:,:,i] * (1 - alpha) + 
-                    new_bg_color[i] * alpha
-                ).astype(np.uint8)
-            
-            # Konverze zpět na PIL Image
-            result = Image.fromarray(result_array)
-            
-            print(f"✅ Pozadí změněno úspěšně!")
+            print(f"✅ AI pozadí změněno úspěšně!")
             return result
             
         except Exception as e:
-            print(f"❌ Chyba při změně barvy pozadí: {e}")
+            print(f"❌ Chyba při AI změně pozadí: {e}")
+            import traceback
+            print(f"📋 TRACEBACK: {traceback.format_exc()}")
             return img
+
+    def change_background(self, img: Image.Image) -> Image.Image:
+        """AI-powered změna pozadí pomocí RemBG"""
+        return self.ai_change_background(img)
     
     def process_image(self, image_path: Path) -> bool:
         """Zpracuje jeden obrázek - univerzální přístup s auto-upscalingem"""
