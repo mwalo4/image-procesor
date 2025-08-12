@@ -372,24 +372,24 @@ class UniversalProcessor:
             # Konverze do numpy array
             img_array = np.array(img)
             
-            # Metoda 1: Detekce světlých pixelů (původní) - AGRESIVNĚJŠÍ
+            # Metoda 1: Detekce světlých pixelů (původní) - KONZERVATIVNĚJŠÍ
             white_mask = np.all(img_array >= self.white_threshold, axis=2)
             print(f"🔍 Metoda 1 (bílé pixely >= {self.white_threshold}): {np.sum(white_mask)} pixelů")
             
-            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny - AGRESIVNĚJŠÍ
-            shadow_threshold = 180  # Sníženo z 200 na 180
+            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny - KONZERVATIVNĚJŠÍ
+            shadow_threshold = 200  # Zvýšeno z 180 na 200
             shadow_mask = np.all(img_array >= shadow_threshold, axis=2)
             print(f"🔍 Metoda 2 (stíny >= {shadow_threshold}): {np.sum(shadow_mask)} pixelů")
             
-            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing) - AGRESIVNĚJŠÍ
+            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing) - KONZERVATIVNĚJŠÍ
             mean_values = np.mean(img_array, axis=2)
             std_values = np.std(img_array, axis=2)
             
-            # Snížené prahy pro detekci anti-aliasingu
-            low_contrast_mask = (std_values < 20) & (mean_values > 160)  # Zvýšeno z 15/180 na 20/160
+            # Konzervativnější prahy pro detekci anti-aliasingu
+            low_contrast_mask = (std_values < 12) & (mean_values > 190)  # Sníženo z 20/160 na 12/190
             print(f"🔍 Metoda 3 (anti-aliasing): {np.sum(low_contrast_mask)} pixelů")
             
-            # Metoda 4: Detekce pixelů podobných okolním (gradient detection) - AGRESIVNĚJŠÍ
+            # Metoda 4: Detekce pixelů podobných okolním (gradient detection) - KONZERVATIVNĚJŠÍ
             from scipy import ndimage
             
             # Vypočítáme gradient (změnu intenzity)
@@ -397,34 +397,34 @@ class UniversalProcessor:
             gradient_y = ndimage.sobel(mean_values, axis=0)
             gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
             
-            # Zvýšený práh pro gradient - detekujeme více pozadí
-            low_gradient_mask = gradient_magnitude < 15  # Zvýšeno z 10 na 15
-            print(f"🔍 Metoda 4 (nízký gradient < 15): {np.sum(low_gradient_mask)} pixelů")
+            # Konzervativnější gradient - detekujeme méně pozadí
+            low_gradient_mask = gradient_magnitude < 8  # Sníženo z 15 na 8
+            print(f"🔍 Metoda 4 (nízký gradient < 8): {np.sum(low_gradient_mask)} pixelů")
             
             # Metoda 5: Detekce světlých oblastí pomocí morfologických operací
             large_white_areas = ndimage.binary_opening(white_mask, structure=np.ones((5,5)))
             large_white_areas = ndimage.binary_closing(large_white_areas, structure=np.ones((10,10)))
             print(f"🔍 Metoda 5 (velké světlé oblasti): {np.sum(large_white_areas)} pixelů")
             
-            # Metoda 6: NOVÁ - Detekce světlých pixelů s velmi nízkým prahem
-            very_light_threshold = 150  # Velmi agresivní detekce
+            # Metoda 6: NOVÁ - Detekce světlých pixelů s velmi nízkým prahem - KONZERVATIVNĚJŠÍ
+            very_light_threshold = 180  # Zvýšeno z 150 na 180
             very_light_mask = np.all(img_array >= very_light_threshold, axis=2)
             print(f"🔍 Metoda 6 (velmi světlé >= {very_light_threshold}): {np.sum(very_light_mask)} pixelů")
             
-            # Metoda 7: NOVÁ - Detekce pixelů s vysokou průměrnou hodnotou
-            high_mean_mask = mean_values > 170  # Detekuje světlé pixely podle průměru
-            print(f"🔍 Metoda 7 (vysoký průměr > 170): {np.sum(high_mean_mask)} pixelů")
+            # Metoda 7: NOVÁ - Detekce pixelů s vysokou průměrnou hodnotou - KONZERVATIVNĚJŠÍ
+            high_mean_mask = mean_values > 200  # Zvýšeno z 170 na 200
+            print(f"🔍 Metoda 7 (vysoký průměr > 200): {np.sum(high_mean_mask)} pixelů")
             
-            # Kombinujeme všechny masky - AGRESIVNĚJŠÍ VÁHY
+            # Kombinujeme všechny masky - KONZERVATIVNĚJŠÍ VÁHY
             combined_mask = (
                 white_mask * 1.0 +                    # Původní bílé pixely (100% jistota)
-                shadow_mask * 0.9 +                   # Stíny (zvýšeno z 0.8 na 0.9)
-                low_contrast_mask * 0.8 +             # Anti-aliasing (zvýšeno z 0.6 na 0.8)
-                low_gradient_mask * 0.6 +             # Nízký gradient (zvýšeno z 0.4 na 0.6)
-                large_white_areas * 0.95 +            # Velké světlé oblasti (zvýšeno z 0.9 na 0.95)
-                very_light_mask * 0.85 +              # Velmi světlé pixely (nové)
-                high_mean_mask * 0.7                  # Vysoký průměr (nové)
-            ) > 0.4  # Sníženo z 0.5 na 0.4 - agresivnější kombinace
+                shadow_mask * 0.7 +                   # Stíny (sníženo z 0.9 na 0.7)
+                low_contrast_mask * 0.6 +             # Anti-aliasing (sníženo z 0.8 na 0.6)
+                low_gradient_mask * 0.3 +             # Nízký gradient (sníženo z 0.6 na 0.3)
+                large_white_areas * 0.9 +             # Velké světlé oblasti (sníženo z 0.95 na 0.9)
+                very_light_mask * 0.6 +               # Velmi světlé pixely (sníženo z 0.85 na 0.6)
+                high_mean_mask * 0.4                  # Vysoký průměr (sníženo z 0.7 na 0.4)
+            ) > 0.6  # Zvýšeno z 0.4 na 0.6 - konzervativnější kombinace
             
             total_detected = np.sum(combined_mask)
             total_pixels = img_array.shape[0] * img_array.shape[1]
