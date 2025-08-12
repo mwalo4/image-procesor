@@ -4,7 +4,7 @@ Flask API Server pro Universal Image Processor
 Integrace s Node.js/React aplikací
 """
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
@@ -15,7 +15,7 @@ from universal_processor import UniversalProcessor, load_config
 import base64
 from io import BytesIO
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 CORS(app)  # Povolí CORS pro React aplikaci
 
 # Konfigurace
@@ -171,6 +171,11 @@ def process_batch_images():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/')
+def index():
+    """Hlavní stránka s frontendem"""
+    return send_from_directory('static', 'index.html')
+
 @app.route('/api/config', methods=['GET'])
 def get_default_config():
     """Vrátí výchozí konfiguraci"""
@@ -250,6 +255,7 @@ if __name__ == '__main__':
     print("🚀 Spouštím Universal Image Processor API...")
     print(f"📡 API bude dostupné na portu: {port}")
     print("🔗 Endpointy:")
+    print("  - GET  / - Frontend interface")
     print("  - GET  /api/health - Health check")
     print("  - POST /api/process-single - Zpracování jednoho obrázku")
     print("  - POST /api/process-batch - Zpracování více obrázků")

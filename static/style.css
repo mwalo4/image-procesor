@@ -1,0 +1,315 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+}
+
+.header h1 {
+    margin: 0 0 15px 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.api-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 500;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.8);
+    border: 2px solid #e5e7eb;
+}
+
+.status-indicator {
+    font-size: 1.2rem;
+}
+
+.config-section, .upload-section, .files-section, .results-section, .api-info {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.config-section h3, .files-section h3, .results-section h3, .api-info h3 {
+    margin: 0 0 20px 0;
+    color: #374151;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-item label {
+    font-weight: 500;
+    color: #4b5563;
+    font-size: 0.9rem;
+}
+
+.config-item input[type="number"],
+.config-item input[type="color"] {
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s;
+    background: white;
+}
+
+.config-item input[type="number"]:focus,
+.config-item input[type="color"]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.config-item input[type="checkbox"] {
+    margin-right: 8px;
+    transform: scale(1.2);
+}
+
+.drop-zone {
+    border: 3px dashed #d1d5db;
+    border-radius: 15px;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(249, 250, 251, 0.8);
+}
+
+.drop-zone:hover {
+    border-color: #667eea;
+    background: rgba(240, 244, 255, 0.9);
+    transform: translateY(-2px);
+}
+
+.drop-zone.dragover {
+    border-color: #667eea;
+    background: rgba(240, 244, 255, 0.9);
+    transform: scale(1.02);
+}
+
+.drop-zone-content {
+    pointer-events: none;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.7;
+}
+
+.drop-zone p {
+    margin: 10px 0;
+    color: #6b7280;
+    font-size: 1.1rem;
+}
+
+.file-info {
+    font-size: 0.9rem !important;
+    color: #9ca3af !important;
+}
+
+.files-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px;
+    background: white;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.9rem;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-size {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.process-button {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.process-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.process-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.processed-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.processed-image {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.2s;
+    background: white;
+}
+
+.processed-image:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.processed-image img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+}
+
+.image-actions {
+    padding: 15px;
+    text-align: center;
+}
+
+.image-actions button {
+    padding: 10px 20px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.image-actions button:hover {
+    background: #059669;
+}
+
+.api-endpoints {
+    display: grid;
+    gap: 10px;
+}
+
+.endpoint {
+    padding: 10px;
+    background: rgba(249, 250, 251, 0.8);
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.endpoint a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.endpoint a:hover {
+    text-decoration: underline;
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .config-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .drop-zone {
+        padding: 40px 15px;
+    }
+    
+    .upload-icon {
+        font-size: 2.5rem;
+    }
+    
+    .processed-images {
+        grid-template-columns: 1fr;
+    }
+} 

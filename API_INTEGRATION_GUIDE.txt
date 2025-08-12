@@ -1,0 +1,776 @@
+===============================================================================
+                    UNIVERSAL IMAGE PROCESSOR API - INTEGRACE
+===============================================================================
+
+🎯 CÍL: Integrovat Railway API do vaší React aplikace
+
+📡 API URL: https://web-production-dcb78.up.railway.app
+🔑 Status: ✅ AKTIVNÍ a funkční
+
+===============================================================================
+                                KROK 1: REACT KOMPONENTA
+===============================================================================
+
+1. Vytvořte soubor `ImageProcessor.jsx` ve vaší React aplikaci:
+
+```jsx
+import React, { useState, useRef } from 'react';
+import './ImageProcessor.css';
+
+const ImageProcessor = () => {
+  const [files, setFiles] = useState([]);
+  const [processedImages, setProcessedImages] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [config, setConfig] = useState({
+    target_width: 1000,
+    target_height: 1000,
+    quality: 95,
+    background_color: '#F3F3F3',
+    product_size_ratio: 0.75,
+    auto_upscale: false
+  });
+  const [apiStatus, setApiStatus] = useState('unknown');
+  const fileInputRef = useRef(null);
+
+  // 🚀 DŮLEŽITÉ: Zde je vaše Railway API URL
+  const API_BASE_URL = 'https://web-production-dcb78.up.railway.app/api';
+
+  // Kontrola API
+  const checkApiHealth = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`);
+      const data = await response.json();
+      setApiStatus(data.status === 'ok' ? 'connected' : 'error');
+      return data.status === 'ok';
+    } catch (error) {
+      setApiStatus('error');
+      return false;
+    }
+  };
+
+  // Zpracování jednoho obrázku
+  const processSingleImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('config', JSON.stringify(config));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/process-single`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      return {
+        originalName: file.name,
+        processedUrl: url,
+        processedBlob: blob
+      };
+    } catch (error) {
+      console.error('Chyba při zpracování obrázku:', error);
+      throw error;
+    }
+  };
+
+  // Zpracování více obrázků
+  const processBatchImages = async () => {
+    if (files.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      if (files.length > 1) {
+        // Batch processing
+        const formData = new FormData();
+        files.forEach(file => {
+          formData.append('images', file);
+        });
+        formData.append('config', JSON.stringify(config));
+
+        const response = await fetch(`${API_BASE_URL}/process-batch`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        
+        // Stáhnutí ZIP souboru
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'processed_images.zip';
+        link.click();
+        
+        setProcessedImages([]);
+      } else {
+        // Single image processing
+        const result = await processSingleImage(files[0]);
+        setProcessedImages([result]);
+      }
+    } catch (error) {
+      console.error('Chyba při zpracování:', error);
+      alert('Chyba při zpracování obrázků: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Drag & drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    const imageFiles = droppedFiles.filter(file => 
+      file.type.startsWith('image/')
+    );
+    
+    if (imageFiles.length > 0) {
+      setFiles(imageFiles);
+    }
+  };
+
+  // Inicializace při načtení komponenty
+  React.useEffect(() => {
+    checkApiHealth();
+  }, []);
+
+  return (
+    <div className="image-processor">
+      <div className="header">
+        <h1>🖼️ Universal Image Processor</h1>
+        <div className={`api-status ${apiStatus}`}>
+          API Status: {apiStatus === 'connected' ? '🟢 Připojeno' : 
+                      apiStatus === 'error' ? '🔴 Chyba připojení' : '🟡 Kontroluji...'}
+        </div>
+      </div>
+
+      <div className="config-section">
+        <h3>⚙️ Konfigurace</h3>
+        <div className="config-grid">
+          <div className="config-item">
+            <label>Šířka (px):</label>
+            <input
+              type="number"
+              value={config.target_width}
+              onChange={(e) => setConfig({...config, target_width: parseInt(e.target.value)})}
+            />
+          </div>
+          <div className="config-item">
+            <label>Výška (px):</label>
+            <input
+              type="number"
+              value={config.target_height}
+              onChange={(e) => setConfig({...config, target_height: parseInt(e.target.value)})}
+            />
+          </div>
+          <div className="config-item">
+            <label>Kvalita (%):</label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={config.quality}
+              onChange={(e) => setConfig({...config, quality: parseInt(e.target.value)})}
+            />
+          </div>
+          <div className="config-item">
+            <label>Barva pozadí:</label>
+            <input
+              type="color"
+              value={config.background_color}
+              onChange={(e) => setConfig({...config, background_color: e.target.value})}
+            />
+          </div>
+          <div className="config-item">
+            <label>Velikost produktu (%):</label>
+            <input
+              type="number"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={config.product_size_ratio}
+              onChange={(e) => setConfig({...config, product_size_ratio: parseFloat(e.target.value)})}
+            />
+          </div>
+          <div className="config-item">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.auto_upscale}
+                onChange={(e) => setConfig({...config, auto_upscale: e.target.checked})}
+              />
+              Automatický upscale
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="upload-section">
+        <div
+          className="drop-zone"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="drop-zone-content">
+            <div className="upload-icon">📁</div>
+            <p>Přetáhněte obrázky sem nebo klikněte pro výběr</p>
+            <p className="file-info">
+              {files.length > 0 ? `Vybráno: ${files.length} souborů` : 'Podporované formáty: JPG, PNG, BMP, TIFF, WebP'}
+            </p>
+          </div>
+        </div>
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={(e) => setFiles(Array.from(e.target.files))}
+          style={{ display: 'none' }}
+        />
+      </div>
+
+      {files.length > 0 && (
+        <div className="files-section">
+          <h3>📋 Vybrané soubory ({files.length})</h3>
+          <div className="files-list">
+            {files.map((file, index) => (
+              <div key={index} className="file-item">
+                <span>{file.name}</span>
+                <span className="file-size">({(file.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            ))}
+          </div>
+          
+          <button
+            className="process-button"
+            onClick={processBatchImages}
+            disabled={isProcessing || apiStatus !== 'connected'}
+          >
+            {isProcessing ? '🔄 Zpracovávám...' : '🚀 Zpracovat obrázky'}
+          </button>
+        </div>
+      )}
+
+      {processedImages.length > 0 && (
+        <div className="results-section">
+          <h3>✅ Zpracované obrázky</h3>
+          <div className="processed-images">
+            {processedImages.map((image, index) => (
+              <div key={index} className="processed-image">
+                <img src={image.processedUrl} alt="Zpracovaný obrázek" />
+                <div className="image-actions">
+                  <button onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = image.processedUrl;
+                    link.download = `processed_${image.originalName}`;
+                    link.click();
+                  }}>
+                    💾 Stáhnout
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ImageProcessor;
+```
+
+===============================================================================
+                                KROK 2: CSS STYLY
+===============================================================================
+
+2. Vytvořte soubor `ImageProcessor.css`:
+
+```css
+.image-processor {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.api-status {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.api-status.connected {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.api-status.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.api-status.unknown {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.config-section {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
+}
+
+.config-section h3 {
+  margin: 0 0 20px 0;
+  color: #374151;
+  font-size: 1.3rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-item label {
+  font-weight: 500;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.config-item input[type="number"],
+.config-item input[type="color"] {
+  padding: 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.config-item input[type="number"]:focus,
+.config-item input[type="color"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.config-item input[type="checkbox"] {
+  margin-right: 8px;
+  transform: scale(1.2);
+}
+
+.upload-section {
+  margin-bottom: 30px;
+}
+
+.drop-zone {
+  border: 3px dashed #d1d5db;
+  border-radius: 15px;
+  padding: 60px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+}
+
+.drop-zone:hover {
+  border-color: #667eea;
+  background: #f0f4ff;
+  transform: translateY(-2px);
+}
+
+.drop-zone-content {
+  pointer-events: none;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.7;
+}
+
+.drop-zone p {
+  margin: 10px 0;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.file-info {
+  font-size: 0.9rem !important;
+  color: #9ca3af !important;
+}
+
+.files-section {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
+}
+
+.files-section h3 {
+  margin: 0 0 20px 0;
+  color: #374151;
+  font-size: 1.3rem;
+}
+
+.files-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9rem;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-size {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.process-button {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.process-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.process-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.results-section {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.results-section h3 {
+  margin: 0 0 20px 0;
+  color: #374151;
+  font-size: 1.3rem;
+}
+
+.processed-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.processed-image {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.processed-image:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.processed-image img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-actions {
+  padding: 15px;
+  text-align: center;
+}
+
+.image-actions button {
+  padding: 10px 20px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.image-actions button:hover {
+  background: #059669;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .image-processor {
+    padding: 15px;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .drop-zone {
+    padding: 40px 15px;
+  }
+  
+  .upload-icon {
+    font-size: 2.5rem;
+  }
+  
+  .processed-images {
+    grid-template-columns: 1fr;
+  }
+}
+```
+
+===============================================================================
+                                KROK 3: POUŽITÍ V APLIKACI
+===============================================================================
+
+3. Importujte komponentu do vaší hlavní aplikace:
+
+```jsx
+import React from 'react';
+import ImageProcessor from './components/ImageProcessor';
+
+function App() {
+  return (
+    <div className="App">
+      <ImageProcessor />
+    </div>
+  );
+}
+
+export default App;
+```
+
+===============================================================================
+                                KROK 4: TESTOVÁNÍ
+===============================================================================
+
+4. Otestujte integraci:
+
+✅ **Health check:** `https://web-production-dcb78.up.railway.app/api/health`
+✅ **Upload obrázku:** Přetáhněte obrázek do drop zóny
+✅ **Zpracování:** Klikněte "Zpracovat obrázky"
+✅ **Stažení:** Stáhněte zpracovaný obrázek
+
+===============================================================================
+                                API ENDPOINTY
+===============================================================================
+
+📡 **Dostupné endpointy:**
+
+1. **Health Check**
+   - URL: `GET /api/health`
+   - Popis: Kontrola stavu API
+
+2. **Zpracování jednoho obrázku**
+   - URL: `POST /api/process-single`
+   - Data: `FormData` s `image` a `config`
+
+3. **Zpracování více obrázků**
+   - URL: `POST /api/process-batch`
+   - Data: `FormData` s `images[]` a `config`
+
+4. **Zpracování base64 obrázku**
+   - URL: `POST /api/process-base64`
+   - Data: `JSON` s `image` (base64) a `config`
+
+5. **Získání konfigurace**
+   - URL: `GET /api/config`
+   - Popis: Vrátí výchozí konfiguraci
+
+6. **Aktualizace konfigurace**
+   - URL: `POST /api/config`
+   - Data: `JSON` s novou konfigurací
+
+===============================================================================
+                                KONFIGURACE
+===============================================================================
+
+⚙️ **Dostupné parametry:**
+
+```json
+{
+  "target_width": 1000,        // Cílová šířka v px
+  "target_height": 1000,       // Cílová výška v px
+  "quality": 95,               // Kvalita JPG (1-100)
+  "background_color": "#F3F3F3", // Barva pozadí (hex)
+  "product_size_ratio": 0.75,  // Velikost produktu (0.1-1.0)
+  "auto_upscale": false,       // Automatický upscale
+  "white_threshold": 240,      // Prah pro bílé pixely
+  "upscale_threshold": 800     // Prah pro upscale
+}
+```
+
+===============================================================================
+                                ŘEŠENÍ PROBLÉMŮ
+===============================================================================
+
+🔧 **Časté problémy:**
+
+1. **CORS chyby**
+   - Řešení: API má povolené CORS pro všechny domény
+
+2. **Velké soubory**
+   - Limit: 16MB na soubor
+   - Řešení: Zmenšete obrázky před uploadem
+
+3. **Timeout chyby**
+   - Limit: 120 sekund na zpracování
+   - Řešení: Zmenšete obrázky nebo počet najednou
+
+4. **API nedostupné**
+   - Zkontrolujte: `https://web-production-dcb78.up.railway.app/api/health`
+   - Railway může mít výpadky
+
+===============================================================================
+                                PŘÍKLADY POUŽITÍ
+===============================================================================
+
+📝 **JavaScript příklady:**
+
+```javascript
+// Health check
+const healthCheck = async () => {
+  const response = await fetch('https://web-production-dcb78.up.railway.app/api/health');
+  const data = await response.json();
+  console.log(data); // {status: "ok", message: "...", version: "1.0.0"}
+};
+
+// Zpracování jednoho obrázku
+const processImage = async (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('config', JSON.stringify({
+    target_width: 1000,
+    target_height: 1000,
+    quality: 95
+  }));
+
+  const response = await fetch('https://web-production-dcb78.up.railway.app/api/process-single', {
+    method: 'POST',
+    body: formData
+  });
+
+  const blob = await response.blob();
+  return blob;
+};
+
+// Získání konfigurace
+const getConfig = async () => {
+  const response = await fetch('https://web-production-dcb78.up.railway.app/api/config');
+  const config = await response.json();
+  return config;
+};
+```
+
+===============================================================================
+                                BEZPEČNOST
+===============================================================================
+
+🔒 **Bezpečnostní doporučení:**
+
+1. **Rate limiting** - API má základní ochranu
+2. **File validation** - Kontrolujte typy souborů
+3. **Size limits** - Respektujte limity velikosti
+4. **Error handling** - Vždy ošetřujte chyby
+
+===============================================================================
+                                PODPORA
+===============================================================================
+
+📞 **Kontakt a podpora:**
+
+- **API Status:** https://web-production-dcb78.up.railway.app/api/health
+- **Railway Dashboard:** https://railway.app
+- **GitHub Repository:** https://github.com/mwalo4/image-procesor
+
+===============================================================================
+                                ZÁVĚR
+===============================================================================
+
+🎉 **Gratulujeme!** Vaše API je připravené pro integraci.
+
+✅ **API běží:** https://web-production-dcb78.up.railway.app
+✅ **Health check:** OK
+✅ **Endpointy:** Funkční
+✅ **Dokumentace:** Kompletní
+
+**Nyní můžete zpracovávat obrázky ve vaší aplikaci!** 🚀
+
+=============================================================================== 

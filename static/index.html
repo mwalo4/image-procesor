@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖼️ Universal Image Processor - Test Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🖼️ Universal Image Processor</h1>
+            <div class="api-status" id="apiStatus">
+                <span class="status-indicator">🟡</span>
+                <span class="status-text">Kontroluji API...</span>
+            </div>
+        </header>
+
+        <div class="config-section">
+            <h3>⚙️ Konfigurace</h3>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="targetWidth">Šířka (px):</label>
+                    <input type="number" id="targetWidth" value="1000" min="100" max="4000">
+                </div>
+                <div class="config-item">
+                    <label for="targetHeight">Výška (px):</label>
+                    <input type="number" id="targetHeight" value="1000" min="100" max="4000">
+                </div>
+                <div class="config-item">
+                    <label for="quality">Kvalita (%):</label>
+                    <input type="number" id="quality" value="95" min="1" max="100">
+                </div>
+                <div class="config-item">
+                    <label for="backgroundColor">Barva pozadí:</label>
+                    <input type="color" id="backgroundColor" value="#F3F3F3">
+                </div>
+                <div class="config-item">
+                    <label for="productSizeRatio">Velikost produktu (%):</label>
+                    <input type="number" id="productSizeRatio" value="0.75" min="0.1" max="1" step="0.1">
+                </div>
+                <div class="config-item">
+                    <label>
+                        <input type="checkbox" id="autoUpscale">
+                        Automatický upscale
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-content">
+                    <div class="upload-icon">📁</div>
+                    <p>Přetáhněte obrázky sem nebo klikněte pro výběr</p>
+                    <p class="file-info" id="fileInfo">Podporované formáty: JPG, PNG, BMP, TIFF, WebP</p>
+                </div>
+            </div>
+            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+        </div>
+
+        <div class="files-section" id="filesSection" style="display: none;">
+            <h3>📋 Vybrané soubory (<span id="fileCount">0</span>)</h3>
+            <div class="files-list" id="filesList"></div>
+            <button class="process-button" id="processButton" disabled>
+                🚀 Zpracovat obrázky
+            </button>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h3>✅ Zpracované obrázky</h3>
+            <div class="processed-images" id="processedImages"></div>
+        </div>
+
+        <div class="api-info">
+            <h3>📡 API Informace</h3>
+            <div class="api-endpoints">
+                <div class="endpoint">
+                    <strong>Health Check:</strong> 
+                    <a href="/api/health" target="_blank">GET /api/health</a>
+                </div>
+                <div class="endpoint">
+                    <strong>Konfigurace:</strong> 
+                    <a href="/api/config" target="_blank">GET /api/config</a>
+                </div>
+                <div class="endpoint">
+                    <strong>Zpracování jednoho obrázku:</strong> POST /api/process-single
+                </div>
+                <div class="endpoint">
+                    <strong>Zpracování více obrázků:</strong> POST /api/process-batch
+                </div>
+                <div class="endpoint">
+                    <strong>Base64 zpracování:</strong> POST /api/process-base64
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
