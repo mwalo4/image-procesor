@@ -357,7 +357,7 @@ class UniversalProcessor:
             return None
     
     def change_background(self, img: Image.Image) -> Image.Image:
-        """Změní bílé pozadí na #F3F3F3"""
+        """Změní bílé pozadí na zadanou barvu s pokročilou detekcí"""
         try:
             # Konverze hex barvy na RGB
             hex_color = self.background_color.lstrip('#')
@@ -370,14 +370,64 @@ class UniversalProcessor:
             # Konverze do numpy array
             img_array = np.array(img)
             
-            # Vytvoření masky pro bílé pixely
+            # Metoda 1: Detekce světlých pixelů (původní)
             white_mask = np.all(img_array >= self.white_threshold, axis=2)
             
-            # Změna barvy bílých pixelů
-            img_array[white_mask] = new_bg_color
+            # Metoda 2: Detekce světlých pixelů s nižším prahem pro stíny
+            shadow_threshold = 200  # Nižší práh pro stíny
+            shadow_mask = np.all(img_array >= shadow_threshold, axis=2)
+            
+            # Metoda 3: Detekce pixelů s nízkým kontrastem (anti-aliasing)
+            # Vypočítáme průměr a směrodatnou odchylku pro každý pixel
+            mean_values = np.mean(img_array, axis=2)
+            std_values = np.std(img_array, axis=2)
+            
+            # Pixely s nízkým kontrastem (anti-aliasing) mají nízkou směrodatnou odchylku
+            low_contrast_mask = (std_values < 15) & (mean_values > 180)
+            
+            # Metoda 4: Detekce pixelů podobných okolním (gradient detection)
+            # Vytvoříme masku pro pixely, které jsou podobné svým sousedům
+            from scipy import ndimage
+            
+            # Vypočítáme gradient (změnu intenzity)
+            gradient_x = ndimage.sobel(mean_values, axis=1)
+            gradient_y = ndimage.sobel(mean_values, axis=0)
+            gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
+            
+            # Pixely s nízkým gradientem jsou pravděpodobně pozadí
+            low_gradient_mask = gradient_magnitude < 10
+            
+            # Metoda 5: Detekce světlých oblastí pomocí morfologických operací
+            # Vytvoříme masku pro velké světlé oblasti
+            large_white_areas = ndimage.binary_opening(white_mask, structure=np.ones((5,5)))
+            large_white_areas = ndimage.binary_closing(large_white_areas, structure=np.ones((10,10)))
+            
+            # Kombinujeme všechny masky
+            # Použijeme vážený přístup - různé masky mají různou důležitost
+            combined_mask = (
+                white_mask * 1.0 +                    # Původní bílé pixely (100% jistota)
+                shadow_mask * 0.8 +                   # Stíny (80% jistota)
+                low_contrast_mask * 0.6 +             # Anti-aliasing (60% jistota)
+                low_gradient_mask * 0.4 +             # Nízký gradient (40% jistota)
+                large_white_areas * 0.9               # Velké světlé oblasti (90% jistota)
+            ) > 0.5  # Prahová hodnota pro kombinaci
+            
+            # Aplikujeme masku s plynulým přechodem
+            # Místo náhlé změny barvy použijeme alpha blending
+            alpha = np.where(combined_mask, 1.0, 0.0)
+            
+            # Vytvoříme nový obrázek s plynulým přechodem
+            result_array = img_array.copy()
+            
+            # Pro pixely, které mají být změněny, použijeme alpha blending
+            for i in range(3):  # RGB kanály
+                result_array[:,:,i] = (
+                    img_array[:,:,i] * (1 - alpha) + 
+                    new_bg_color[i] * alpha
+                ).astype(np.uint8)
             
             # Konverze zpět na PIL Image
-            result = Image.fromarray(img_array)
+            result = Image.fromarray(result_array)
             
             return result
             
