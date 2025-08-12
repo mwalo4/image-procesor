@@ -90,6 +90,8 @@ def process_single_image():
             
             # Zpracování obrázku
             processor_config = get_processor_config(custom_config)
+            processor_config['input_dir'] = temp_dir
+            processor_config['output_dir'] = temp_dir
             processor = UniversalProcessor(processor_config)
             
             # Zpracování
