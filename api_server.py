@@ -74,22 +74,32 @@ def health_check():
 @app.route('/api/process-single', methods=['POST'])
 def process_single_image():
     """Zpracuje jeden obrázek"""
+    print("🔍 DEBUG: Začínám process_single_image")
     try:
+        print("🔍 DEBUG: Kontroluji soubor v requestu")
         # Kontrola, zda je soubor v requestu
         if 'image' not in request.files:
+            print("❌ CHYBA: No image file provided")
             return jsonify({'error': 'No image file provided'}), 400
         
         file = request.files['image']
+        print(f"🔍 DEBUG: Soubor: {file.filename}")
         if file.filename == '':
+            print("❌ CHYBA: No file selected")
             return jsonify({'error': 'No file selected'}), 400
         
         if not allowed_file(file.filename):
+            print(f"❌ CHYBA: Invalid file type: {file.filename}")
             return jsonify({'error': 'Invalid file type'}), 400
         
+        print("🔍 DEBUG: Získávám konfiguraci")
         # Získání konfigurace z requestu
         config_data = request.form.get('config', '{}')
+        print(f"🔍 DEBUG: Config data: {config_data}")
         custom_config = json.loads(config_data) if config_data else {}
+        print(f"🔍 DEBUG: Custom config: {custom_config}")
         
+        print("🔍 DEBUG: Vytvářím dočasnou složku")
         # Vytvoření dočasné složky
         with tempfile.TemporaryDirectory() as temp_dir:
             # Uložení uploadovaného souboru
