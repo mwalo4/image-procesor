@@ -15,7 +15,9 @@ from universal_processor import UniversalProcessor, load_config
 import base64
 from io import BytesIO
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__)
+app.static_folder = 'static'
+app.static_url_path = ''
 CORS(app)  # Povolí CORS pro React aplikaci
 
 # Konfigurace
@@ -175,6 +177,16 @@ def process_batch_images():
 def index():
     """Hlavní stránka s frontendem"""
     return send_from_directory('static', 'index.html')
+
+@app.route('/style.css')
+def style_css():
+    """CSS soubor"""
+    return send_from_directory('static', 'style.css')
+
+@app.route('/script.js')
+def script_js():
+    """JavaScript soubor"""
+    return send_from_directory('static', 'script.js')
 
 
 
