@@ -102,10 +102,26 @@ def process_single_image():
         print("🔍 DEBUG: Vytvářím dočasnou složku")
         # Vytvoření dočasné složky
         with tempfile.TemporaryDirectory() as temp_dir:
+            print(f"🔍 DEBUG: Dočasná složka vytvořena: {temp_dir}")
+            
             # Uložení uploadovaného souboru
             filename = secure_filename(file.filename)
             input_path = os.path.join(temp_dir, filename)
-            file.save(input_path)
+            print(f"🔍 DEBUG: Ukládám soubor do: {input_path}")
+            
+            try:
+                file.save(input_path)
+                print(f"🔍 DEBUG: Soubor úspěšně uložen: {input_path}")
+            except Exception as save_error:
+                print(f"❌ CHYBA při ukládání souboru: {save_error}")
+                return jsonify({'error': f'Failed to save file: {save_error}'}), 500
+            
+            # Kontrola, jestli soubor existuje
+            if not os.path.exists(input_path):
+                print(f"❌ CHYBA: Soubor neexistuje: {input_path}")
+                return jsonify({'error': 'File was not saved properly'}), 500
+            
+            print(f"🔍 DEBUG: Soubor existuje, velikost: {os.path.getsize(input_path)} bytes")
             
             # Vytvoření výstupní cesty
             output_filename = f"processed_{filename.rsplit('.', 1)[0]}.jpg"
