@@ -387,6 +387,7 @@ class UniversalProcessor:
     
     def process_image(self, image_path: Path) -> bool:
         """Zpracuje jeden obrázek - univerzální přístup s auto-upscalingem"""
+        print(f"🔍 DEBUG: Začínám zpracování {image_path}")
         try:
             # Vytvoření výstupní cesty
             relative_path = image_path.relative_to(self.input_dir)
@@ -399,22 +400,28 @@ class UniversalProcessor:
             output_path = output_path.with_suffix('.jpg')
             
             # Načtení obrázku
+            print(f"🔍 DEBUG: Otevírám obrázek {image_path}")
             with Image.open(image_path) as img:
                 # Konverze na RGB pokud není
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
                 
+                print(f"🔍 DEBUG: Obrázek načten: {img.width}x{img.height}px, mode: {img.mode}")
                 print(f"Zpracovávám {image_path.name}: {img.width}x{img.height}px")
                 
+                print(f"🔍 DEBUG: Krok 0 - Auto upscale")
                 # Krok 0: Automatický upscale malých obrázků
                 img = self.auto_upscale_image(img)
                 
+                print(f"🔍 DEBUG: Krok 1 - Smart resize")
                 # Krok 1: Chytře změníme velikost a vycentrujeme produkt
                 processed_img = self.smart_resize_and_center(img)
                 
+                print(f"🔍 DEBUG: Krok 2 - Background change")
                 # Krok 2: Změníme bílé pozadí na šedé
                 processed_img = self.change_background(processed_img)
                 
+                print(f"🔍 DEBUG: Ukládám obrázek do {output_path}")
                 # Uložení s vysokou kvalitou
                 processed_img.save(
                     output_path,
@@ -424,10 +431,14 @@ class UniversalProcessor:
                     subsampling=0
                 )
                 
+                print(f"🔍 DEBUG: Zpracování úspěšné!")
                 return True
                 
         except Exception as e:
-            print(f"Chyba při zpracování {image_path}: {e}")
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"❌ CHYBA při zpracování {image_path}: {e}")
+            print(f"📋 TRACEBACK: {error_details}")
             return False
     
     def get_image_files(self) -> List[Path]:
