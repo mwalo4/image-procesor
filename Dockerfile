@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 8080
 
 # Spuštění aplikace s Gunicorn (produkční WSGI server)
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "api_server:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "api_server:app"] 
