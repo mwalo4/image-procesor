@@ -118,8 +118,9 @@ def process_single_image():
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"Error in process_single_image: {e}")
-        print(f"Traceback: {error_details}")
+        print(f"❌ ERROR in process_single_image: {e}")
+        print(f"📋 TRACEBACK: {error_details}")
+        print(f"🔍 ERROR TYPE: {type(e).__name__}")
         return jsonify({
             'error': str(e),
             'details': error_details,
@@ -298,8 +299,9 @@ if __name__ == '__main__':
     print("🏭 Spouštím Flask server v produkci režimu...")
     print(f"🌐 Port: {port}")
     
-    # Vypneme Flask warning pro produkci
+    # Nastavíme logging pro debugging
     import logging
+    logging.basicConfig(level=logging.DEBUG)
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     
