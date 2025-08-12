@@ -11,11 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Kopírování aplikace
 COPY . .
 
-# Udělat start script spustitelný
-RUN chmod +x start.sh
-
 # Expose port
 EXPOSE 8080
 
-# Spuštění aplikace pomocí start scriptu
-CMD ["./start.sh"] 
+# Spuštění Flask serveru přímo
+CMD ["python", "api_server.py"] 

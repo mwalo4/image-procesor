@@ -245,7 +245,7 @@ if __name__ == '__main__':
     import os
     
     # Railway používá PORT environment proměnnou
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8080))
     
     print("🚀 Spouštím Universal Image Processor API...")
     print(f"📡 API bude dostupné na portu: {port}")
@@ -257,12 +257,8 @@ if __name__ == '__main__':
     print("  - GET  /api/config - Získání konfigurace")
     print("  - POST /api/config - Aktualizace konfigurace")
     
-    # Použijeme Gunicorn pro produkci, Flask development server pro lokální vývoj
-    if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT'):
-        print("🏭 Produkční prostředí - Gunicorn bude spuštěn automaticky")
-        print(f"🌐 Port: {port}")
-        # V produkci necháme Gunicorn spustit server
-        # Nespouštíme Flask server, protože Gunicorn se spustí z start.sh
-    else:
-        print("🛠️  Vývojové prostředí - Spouštím Flask development server")
-        app.run(debug=False, host='0.0.0.0', port=port) 
+    print("🏭 Spouštím Flask server...")
+    print(f"🌐 Port: {port}")
+    
+    # Spustíme Flask server vždy
+    app.run(debug=False, host='0.0.0.0', port=port) 
