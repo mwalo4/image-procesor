@@ -1,8 +1,17 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
+nixPkgs = [
+  "python311",
+  "python311Packages.flask",
+  "python311Packages.flask-cors",
+  "python311Packages.pillow",
+  "python311Packages.tqdm",
+  "python311Packages.numpy",
+  "python311Packages.werkzeug",
+  "python311Packages.gunicorn"
+]
 
 [phases.install]
-cmds = ["pip install --user -r requirements.txt"]
+cmds = ["echo 'Dependencies installed via Nix'"]
 
 [phases.build]
 cmds = ["echo 'Build completed'"]
