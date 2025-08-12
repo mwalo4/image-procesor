@@ -92,10 +92,17 @@ def process_single_image():
             processor_config = get_processor_config(custom_config)
             processor_config['input_dir'] = temp_dir
             processor_config['output_dir'] = temp_dir
+            
+            print(f"Processor config: {processor_config}")
+            print(f"Input path: {input_path}")
+            print(f"Output path: {output_path}")
+            
             processor = UniversalProcessor(processor_config)
             
             # Zpracování
             success = processor.process_image(Path(input_path))
+            
+            print(f"Processing result: {success}")
             
             if not success:
                 return jsonify({'error': 'Failed to process image'}), 500
@@ -109,7 +116,15 @@ def process_single_image():
             )
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error in process_single_image: {e}")
+        print(f"Traceback: {error_details}")
+        return jsonify({
+            'error': str(e),
+            'details': error_details,
+            'type': type(e).__name__
+        }), 500
 
 @app.route('/api/process-batch', methods=['POST'])
 def process_batch_images():
