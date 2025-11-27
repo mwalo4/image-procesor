@@ -162,11 +162,15 @@ def process_single_image():
             
             print(f"🔍 DEBUG: Soubor existuje, velikost: {os.path.getsize(input_path)} bytes")
             
-            # Vytvoření výstupní cesty
-            output_filename = f"processed_{filename.rsplit('.', 1)[0]}.webp"
-            output_path = os.path.join(temp_dir, output_filename)
+            # Vytvoření výstupní cesty (UniversalProcessor zachovává jméno, jen mění příponu)
+            # POZOR: UniversalProcessor nepřidává prefix "processed_" na disk!
+            actual_output_filename = f"{filename.rsplit('.', 1)[0]}.webp"
+            output_path = os.path.join(temp_dir, actual_output_filename)
             
-            print(f"🔍 DEBUG: Očekávám výstupní soubor: {output_path}")
+            # Jméno pro stažení (tady chceme prefix)
+            download_filename = f"processed_{actual_output_filename}"
+            
+            print(f"🔍 DEBUG: Očekávám výstupní soubor na disku: {output_path}")
             
             # Zpracování obrázku
             processor_config = get_processor_config(custom_config)
@@ -200,7 +204,7 @@ def process_single_image():
                 output_path,
                 mimetype='image/webp',
                 as_attachment=True,
-                download_name=output_filename
+                download_name=download_filename
             )
     
     except Exception as e:
