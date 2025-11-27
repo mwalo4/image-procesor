@@ -11,7 +11,7 @@ import os
 import tempfile
 import json
 from pathlib import Path
-from universal_processor import UniversalProcessor, load_config
+from universal_processor import UniversalProcessor
 import base64
 from io import BytesIO
 
