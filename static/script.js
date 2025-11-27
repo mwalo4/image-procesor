@@ -1,14 +1,9 @@
 // Global variables
 let selectedFiles = [];
-let apiConnected = false;
 
 // DOM elements
-const apiStatus = document.getElementById('apiStatus');
-const statusIndicator = apiStatus.querySelector('.status-indicator');
-const statusText = apiStatus.querySelector('.status-text');
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
 const filesSection = document.getElementById('filesSection');
 const fileCount = document.getElementById('fileCount');
 const filesList = document.getElementById('filesList');
@@ -20,37 +15,14 @@ const processedImages = document.getElementById('processedImages');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function () {
-    checkApiHealth();
     setupEventListeners();
 });
-
-// API Health Check
-async function checkApiHealth() {
-    try {
-        const response = await fetch('/api/health');
-        const data = await response.json();
-
-        if (data.status === 'ok') {
-            apiConnected = true;
-            statusIndicator.textContent = '🟢';
-            statusText.textContent = 'API připojeno';
-            processButton.disabled = false;
-        } else {
-            throw new Error('API status not ok');
-        }
-    } catch (error) {
-        console.error('API health check failed:', error);
-        apiConnected = false;
-        statusIndicator.textContent = '🔴';
-        statusText.textContent = 'Chyba připojení k API';
-        processButton.disabled = true;
-    }
-}
 
 // Setup event listeners
 function setupEventListeners() {
     // Drop zone events
     dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('dragleave', handleDragLeave);
     dropZone.addEventListener('drop', handleDrop);
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -67,6 +39,11 @@ function handleDragOver(e) {
     dropZone.classList.add('dragover');
 }
 
+function handleDragLeave(e) {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+}
+
 function handleDrop(e) {
     e.preventDefault();
     dropZone.classList.remove('dragover');
@@ -77,8 +54,6 @@ function handleDrop(e) {
     if (imageFiles.length > 0) {
         selectedFiles = imageFiles;
         updateFileList();
-    } else {
-        alert('Prosím vyberte pouze obrázkové soubory.');
     }
 }
 
@@ -92,26 +67,24 @@ function handleFileSelect(e) {
 function updateFileList() {
     if (selectedFiles.length === 0) {
         filesSection.style.display = 'none';
-        fileInfo.textContent = 'Podporované formáty: JPG, PNG, BMP, TIFF, WebP';
         return;
     }
 
     filesSection.style.display = 'block';
     fileCount.textContent = selectedFiles.length;
-    fileInfo.textContent = `Vybráno: ${selectedFiles.length} souborů`;
 
     filesList.innerHTML = '';
-    selectedFiles.forEach((file, index) => {
+    selectedFiles.forEach((file) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         fileItem.innerHTML = `
             <span>${file.name}</span>
-            <span class="file-size">(${(file.size / 1024).toFixed(1)} KB)</span>
+            <span class="file-size">${(file.size / 1024).toFixed(1)} KB</span>
         `;
         filesList.appendChild(fileItem);
     });
 
-    processButton.disabled = !apiConnected;
+    processButton.disabled = false;
 }
 
 // Get configuration (fixed settings)
@@ -132,18 +105,16 @@ function getConfig() {
 // Process images
 async function processImages() {
     if (selectedFiles.length === 0) {
-        alert('Prosím vyberte alespoň jeden obrázek.');
-        return;
-    }
-
-    if (!apiConnected) {
-        alert('API není dostupné. Zkontrolujte připojení.');
         return;
     }
 
     // Update button state
     processButton.disabled = true;
-    processButton.innerHTML = '<span class="loading"></span> Zpracovávám...';
+    const btnText = processButton.querySelector('.btn-text');
+    const btnIcon = processButton.querySelector('.btn-icon');
+
+    btnIcon.innerHTML = '<div class="loading-spinner"></div>';
+    btnText.textContent = 'Zpracovávám...';
 
     try {
         const config = getConfig();
@@ -157,11 +128,12 @@ async function processImages() {
         }
     } catch (error) {
         console.error('Error processing images:', error);
-        alert('Chyba při zpracování obrázků: ' + error.message);
+        alert('Chyba při zpracování obrázků. Zkuste to prosím znovu.');
     } finally {
         // Reset button state
+        btnIcon.innerHTML = '<span class="btn-icon">✨</span>';
+        btnText.textContent = 'Zpracovat';
         processButton.disabled = false;
-        processButton.textContent = '🚀 Zpracovat obrázky';
     }
 }
 
@@ -183,7 +155,7 @@ async function processSingleImage(file, config) {
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
 
-    displayProcessedImage(file.name, url, blob);
+    displayProcessedImage(file.name, url);
 }
 
 // Process batch images
@@ -217,21 +189,20 @@ async function processBatchImages(files, config) {
 }
 
 // Display processed image
-function displayProcessedImage(originalName, imageUrl, blob) {
+function displayProcessedImage(originalName, imageUrl) {
     resultsSection.style.display = 'block';
 
-    const imageContainer = document.createElement('div');
-    imageContainer.className = 'processed-image';
-    imageContainer.innerHTML = `
+    const resultItem = document.createElement('div');
+    resultItem.className = 'result-item';
+    resultItem.innerHTML = `
         <img src="${imageUrl}" alt="Zpracovaný obrázek">
-        <div class="image-actions">
-            <button onclick="downloadImage('${imageUrl}', 'processed_${originalName}')">
-                💾 Stáhnout
-            </button>
-        </div>
+        <button class="download-btn" onclick="downloadImage('${imageUrl}', 'processed_${originalName.replace(/\.[^/.]+$/, '.webp')}')">
+            💾 Stáhnout
+        </button>
     `;
 
-    processedImages.appendChild(imageContainer);
+    processedImages.innerHTML = '';
+    processedImages.appendChild(resultItem);
 
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth' });
@@ -242,11 +213,11 @@ function showBatchSuccess(fileCount) {
     resultsSection.style.display = 'block';
 
     const messageContainer = document.createElement('div');
-    messageContainer.className = 'processed-image';
+    messageContainer.className = 'result-item';
     messageContainer.innerHTML = `
-        <div style="padding: 40px; text-align: center;">
-            <h3 style="color: #10b981; margin-bottom: 10px;">✅ Úspěšně zpracováno!</h3>
-            <p>${fileCount} obrázků bylo zpracováno a staženo jako ZIP soubor.</p>
+        <div style="padding: 40px;">
+            <h3 style="font-size: 24px; margin-bottom: 12px;">🎉 Hotovo!</h3>
+            <p style="color: #6b7280; font-size: 16px;">${fileCount} obrázků bylo zpracováno a staženo.</p>
         </div>
     `;
 
@@ -264,12 +235,3 @@ function downloadImage(url, filename) {
     link.download = filename;
     link.click();
 }
-
-// Utility functions
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-} 
