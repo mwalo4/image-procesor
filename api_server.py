@@ -14,6 +14,8 @@ logging.basicConfig(
     stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
+# Silence PIL debug logs
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 logger.info("🔧 Starting imports...")
 
