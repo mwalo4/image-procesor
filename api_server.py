@@ -4,16 +4,35 @@ Flask API Server pro Universal Image Processor
 Integrace s Node.js/React aplikací
 """
 
-from flask import Flask, request, jsonify, send_file, send_from_directory
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
-import os
-import tempfile
-import json
-from pathlib import Path
-from universal_processor import UniversalProcessor
-import base64
-from io import BytesIO
+import sys
+import logging
+
+# Setup logging first
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
+logger.info("🔧 Starting imports...")
+
+try:
+    from flask import Flask, request, jsonify, send_file, send_from_directory
+    from flask_cors import CORS
+    from werkzeug.utils import secure_filename
+    import os
+    import tempfile
+    import json
+    from pathlib import Path
+    from universal_processor import UniversalProcessor
+    import base64
+    from io import BytesIO
+    logger.info("✅ All imports successful")
+except Exception as e:
+    logger.error(f"❌ Import error: {e}", exc_info=True)
+    raise
+
 
 app = Flask(__name__)
 app.static_folder = 'static'
@@ -91,6 +110,7 @@ def health_check():
 @app.route('/api/process-single', methods=['POST'])
 def process_single_image():
     """Zpracuje jeden obrázek"""
+    logger.info("🔍 DEBUG: Začínám process_single_image")
     print("🔍 DEBUG: Začínám process_single_image")
     try:
         print("🔍 DEBUG: Kontroluji soubor v requestu")
