@@ -37,11 +37,24 @@ Thumbs.db
 
 # Temporary files
 temp_uploads/
+temp_single_input/
+temp_single_output/
 *.tmp
 *.temp
 
-# Logs
+# Logs and Reports
 *.log
+quality_report.json
+
+# Processed Images and Outputs
+processed_images/
+processed_*/
+*.zip
+
+# Test Data
+test_*/
+input_images/
+grizly-full-povolene-produkty/
 
 # Environment variables
 .env
@@ -49,4 +62,10 @@ temp_uploads/
 .env.production
 
 # Railway specific
-.railway/ 
+.railway/
+
+# CSV Data Files
+*.csv
+
+# Upscayl Batch
+.tmp_upscayl_batch/ 
