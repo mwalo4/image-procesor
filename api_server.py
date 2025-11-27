@@ -63,7 +63,10 @@ def get_processor_config(custom_config=None):
         'product_size_ratio': 0.75,
         'auto_upscale': False,
         'upscale_threshold': 800,
-        'upscale_method': 'multi-scale'
+        'upscale_method': 'multi-scale',
+        'output_format': 'webp',
+        'target_max_kb': 100,
+        'min_quality': 60
     }
     
     # Aktualizujeme s konfigurací z souboru
@@ -138,7 +141,7 @@ def process_single_image():
             print(f"🔍 DEBUG: Soubor existuje, velikost: {os.path.getsize(input_path)} bytes")
             
             # Vytvoření výstupní cesty
-            output_filename = f"processed_{filename.rsplit('.', 1)[0]}.jpg"
+            output_filename = f"processed_{filename.rsplit('.', 1)[0]}.webp"
             output_path = os.path.join(temp_dir, output_filename)
             
             print(f"🔍 DEBUG: Očekávám výstupní soubor: {output_path}")
@@ -173,7 +176,7 @@ def process_single_image():
             # Odeslání zpracovaného obrázku
             return send_file(
                 output_path,
-                mimetype='image/jpeg',
+                mimetype='image/webp',
                 as_attachment=True,
                 download_name=output_filename
             )

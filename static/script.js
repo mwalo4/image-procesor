@@ -16,16 +16,10 @@ const processButton = document.getElementById('processButton');
 const resultsSection = document.getElementById('resultsSection');
 const processedImages = document.getElementById('processedImages');
 
-// Configuration elements
-const targetWidth = document.getElementById('targetWidth');
-const targetHeight = document.getElementById('targetHeight');
-const quality = document.getElementById('quality');
-const backgroundColor = document.getElementById('backgroundColor');
-const productSizeRatio = document.getElementById('productSizeRatio');
-const autoUpscale = document.getElementById('autoUpscale');
+// Fixed configuration - no UI controls needed
 
 // Initialize
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     checkApiHealth();
     setupEventListeners();
 });
@@ -35,7 +29,7 @@ async function checkApiHealth() {
     try {
         const response = await fetch('/api/health');
         const data = await response.json();
-        
+
         if (data.status === 'ok') {
             apiConnected = true;
             statusIndicator.textContent = '🟢';
@@ -59,10 +53,10 @@ function setupEventListeners() {
     dropZone.addEventListener('dragover', handleDragOver);
     dropZone.addEventListener('drop', handleDrop);
     dropZone.addEventListener('click', () => fileInput.click());
-    
+
     // File input events
     fileInput.addEventListener('change', handleFileSelect);
-    
+
     // Process button
     processButton.addEventListener('click', processImages);
 }
@@ -76,10 +70,10 @@ function handleDragOver(e) {
 function handleDrop(e) {
     e.preventDefault();
     dropZone.classList.remove('dragover');
-    
+
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    
+
     if (imageFiles.length > 0) {
         selectedFiles = imageFiles;
         updateFileList();
@@ -101,11 +95,11 @@ function updateFileList() {
         fileInfo.textContent = 'Podporované formáty: JPG, PNG, BMP, TIFF, WebP';
         return;
     }
-    
+
     filesSection.style.display = 'block';
     fileCount.textContent = selectedFiles.length;
     fileInfo.textContent = `Vybráno: ${selectedFiles.length} souborů`;
-    
+
     filesList.innerHTML = '';
     selectedFiles.forEach((file, index) => {
         const fileItem = document.createElement('div');
@@ -116,19 +110,22 @@ function updateFileList() {
         `;
         filesList.appendChild(fileItem);
     });
-    
+
     processButton.disabled = !apiConnected;
 }
 
-// Get configuration
+// Get configuration (fixed settings)
 function getConfig() {
     return {
-        target_width: parseInt(targetWidth.value),
-        target_height: parseInt(targetHeight.value),
-        quality: parseInt(quality.value),
-        background_color: backgroundColor.value,
-        product_size_ratio: parseFloat(productSizeRatio.value),
-        auto_upscale: autoUpscale.checked
+        target_width: 1000,
+        target_height: 1000,
+        quality: 95,
+        background_color: '#F3F3F3',
+        product_size_ratio: 0.75,
+        auto_upscale: false,
+        output_format: 'webp',
+        target_max_kb: 100,
+        min_quality: 60
     };
 }
 
@@ -138,19 +135,19 @@ async function processImages() {
         alert('Prosím vyberte alespoň jeden obrázek.');
         return;
     }
-    
+
     if (!apiConnected) {
         alert('API není dostupné. Zkontrolujte připojení.');
         return;
     }
-    
+
     // Update button state
     processButton.disabled = true;
     processButton.innerHTML = '<span class="loading"></span> Zpracovávám...';
-    
+
     try {
         const config = getConfig();
-        
+
         if (selectedFiles.length === 1) {
             // Single image processing
             await processSingleImage(selectedFiles[0], config);
@@ -173,19 +170,19 @@ async function processSingleImage(file, config) {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('config', JSON.stringify(config));
-    
+
     const response = await fetch('/api/process-single', {
         method: 'POST',
         body: formData
     });
-    
+
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-    
+
     displayProcessedImage(file.name, url, blob);
 }
 
@@ -196,25 +193,25 @@ async function processBatchImages(files, config) {
         formData.append('images', file);
     });
     formData.append('config', JSON.stringify(config));
-    
+
     const response = await fetch('/api/process-batch', {
         method: 'POST',
         body: formData
     });
-    
+
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-    
+
     // Download ZIP file
     const link = document.createElement('a');
     link.href = url;
     link.download = 'processed_images.zip';
     link.click();
-    
+
     // Show success message
     showBatchSuccess(files.length);
 }
@@ -222,7 +219,7 @@ async function processBatchImages(files, config) {
 // Display processed image
 function displayProcessedImage(originalName, imageUrl, blob) {
     resultsSection.style.display = 'block';
-    
+
     const imageContainer = document.createElement('div');
     imageContainer.className = 'processed-image';
     imageContainer.innerHTML = `
@@ -233,9 +230,9 @@ function displayProcessedImage(originalName, imageUrl, blob) {
             </button>
         </div>
     `;
-    
+
     processedImages.appendChild(imageContainer);
-    
+
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
@@ -243,7 +240,7 @@ function displayProcessedImage(originalName, imageUrl, blob) {
 // Show batch success message
 function showBatchSuccess(fileCount) {
     resultsSection.style.display = 'block';
-    
+
     const messageContainer = document.createElement('div');
     messageContainer.className = 'processed-image';
     messageContainer.innerHTML = `
@@ -252,10 +249,10 @@ function showBatchSuccess(fileCount) {
             <p>${fileCount} obrázků bylo zpracováno a staženo jako ZIP soubor.</p>
         </div>
     `;
-    
+
     processedImages.innerHTML = '';
     processedImages.appendChild(messageContainer);
-    
+
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
