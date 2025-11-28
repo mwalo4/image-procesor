@@ -35,8 +35,8 @@ class UniversalProcessor:
         self.product_size_ratio = config.get('product_size_ratio', 0.75)
         # Přidán práh pro alfa kanál (pro PNG/WebP s průhledností)
         self.alpha_threshold = config.get('alpha_threshold', 5)
-        # Přepínač pro recolor (nyní zapnuto aby se změnilo pozadí)
-        self.recolor_background = config.get('recolor_background', True)
+        # Přepínač pro recolor (výchozí vypnuto, aby se nebarvily světlé části produktu)
+        self.recolor_background = config.get('recolor_background', False)
         # Nové nastavení centrování a okrajů
         self.center_mode = config.get('center_mode', 'bbox')  # 'bbox' | 'centroid'
         self.min_margin_ratio = config.get('min_margin_ratio', 0.05)  # 5% na každé straně

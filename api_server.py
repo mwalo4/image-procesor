@@ -88,7 +88,8 @@ def get_processor_config(custom_config=None):
         'output_format': 'webp',
         'target_max_kb': 100,
         'min_quality': 60,
-        'flatten_png_first': True  # Fix pro stíny u PNG s průhledností
+        'flatten_png_first': True,  # Fix pro stíny u PNG s průhledností
+        'recolor_background': False # DŮLEŽITÉ: Vypnout, jinak ničí černé/bílé části produktu!
     }
     
     # Aktualizujeme s konfigurací z souboru
