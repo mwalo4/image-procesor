@@ -87,7 +87,8 @@ def get_processor_config(custom_config=None):
         'upscale_method': 'multi-scale',
         'output_format': 'webp',
         'target_max_kb': 100,
-        'min_quality': 60
+        'min_quality': 60,
+        'flatten_png_first': True  # Fix pro stíny u PNG s průhledností
     }
     
     # Aktualizujeme s konfigurací z souboru
