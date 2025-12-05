@@ -94,12 +94,12 @@ class UniversalProcessor:
             small_w, small_h = orig_w, orig_h
             work_img = img
         arr = np.array(work_img)
-        white_like = (arr[:, :, 0] >= self.white_threshold) & \
-                     (arr[:, :, 1] >= self.white_threshold) & \
-                     (arr[:, :, 2] >= self.white_threshold)
-        black_like = (arr[:, :, 0] <= self.black_threshold) & \
-                     (arr[:, :, 1] <= self.black_threshold) & \
-                     (arr[:, :, 2] <= self.black_threshold)
+        # Použijeme průměrný jas (luminanci) pro robustnější detekci "špinavé" bílé/černé
+        # (řeší barevný nádech stínů, např. do modra/žluta)
+        mean_brightness = np.mean(arr[:, :, :3], axis=2)
+        
+        white_like = mean_brightness >= self.white_threshold
+        black_like = mean_brightness <= self.black_threshold
         h, w = white_like.shape
         visited = np.zeros((h, w), dtype=bool)
         q = deque()

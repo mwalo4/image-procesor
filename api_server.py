@@ -80,7 +80,7 @@ def get_processor_config(custom_config=None):
         'target_height': 1000,
         'quality': 95,
         'background_color': '#F3F3F3',
-        'white_threshold': 200, # Sníženo z 220 pro agresivnější odstranění "špinavého" bílého pozadí
+        'white_threshold': 190, # Sníženo na 190 + změna logiky na průměrný jas (catch more shadows)
         'product_size_ratio': 0.75,
         'auto_upscale': False,
         'upscale_threshold': 800,
