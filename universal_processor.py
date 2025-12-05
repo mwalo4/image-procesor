@@ -98,7 +98,33 @@ class UniversalProcessor:
         # (řeší barevný nádech stínů, např. do modra/žluta)
         mean_brightness = np.mean(arr[:, :, :3], axis=2)
         
-        white_like = mean_brightness >= self.white_threshold
+        # Dynamický výpočet prahu podle rohů obrázku (pokud je pozadí tmavší než default threshold)
+        # Získáme průměrný jas rohů (předpokládáme že rohy jsou pozadí)
+        tl = mean_brightness[0:10, 0:10].mean()
+        tr = mean_brightness[0:10, -10:].mean()
+        bl = mean_brightness[-10:, 0:10].mean()
+        br = mean_brightness[-10:, -10:].mean()
+        corners_mean = np.mean([tl, tr, bl, br])
+        
+        # Pokud je pozadí "bílé" (jas > 100), ale tmavší než default threshold (např. 180),
+        # snížíme práh dynamicky, aby zachytil toto pozadí.
+        # Nechceme jít příliš nízko (pod 150), abychom neřízli do produktu.
+        effective_white_threshold = self.white_threshold
+        if corners_mean > 100: # Je to spíše světlé pozadí
+             # Nastavíme threshold kousek pod jas pozadí (tolerance 10-15)
+             dynamic_threshold = max(150, corners_mean - 15)
+             # Použijeme ten nižší (buď default nebo dynamický), ale ne vyšší než default
+             # (aby user mohl threshold manuálně snížit, pokud chce)
+             # Zde chceme povolit POKLES pod 190, pokud je fotka tmavá.
+             # Ale default 190 může být moc vysoko pro tmavou fotku (kde pozadí je 160).
+             # Takže effective = min(default, dynamic)
+             effective_white_threshold = min(self.white_threshold, dynamic_threshold)
+             # Ale zároveň, pokud je fotka PERFEKTNÍ (pozadí 255), dynamic bude 240.
+             # Pokud user nastavil 190, tak min(190, 240) = 190. To je OK (190 zachytí 255).
+             # Problém je, když pozadí je 180. Dynamic = 165. Min(190, 165) = 165.
+             # Tím pádem 165 zachytí 180. Bingo!
+        
+        white_like = mean_brightness >= effective_white_threshold
         black_like = mean_brightness <= self.black_threshold
         h, w = white_like.shape
         visited = np.zeros((h, w), dtype=bool)
