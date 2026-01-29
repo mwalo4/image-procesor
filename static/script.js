@@ -87,8 +87,9 @@ function updateFileList() {
     processButton.disabled = false;
 }
 
-// Get configuration (fixed settings)
+// Get configuration (fixed settings + options)
 function getConfig() {
+    const aiBackgroundRemoval = document.getElementById('aiBackgroundRemoval').checked;
     return {
         target_width: 1000,
         target_height: 1000,
@@ -98,7 +99,8 @@ function getConfig() {
         auto_upscale: false,
         output_format: 'webp',
         target_max_kb: 100,
-        min_quality: 60
+        min_quality: 60,
+        ai_background_removal: aiBackgroundRemoval
     };
 }
 

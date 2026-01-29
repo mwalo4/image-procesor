@@ -48,6 +48,8 @@ class UniversalProcessor:
         self.png_matte = config.get('png_matte', '#FFFFFF')
         # Režim detekce okrajového pozadí: 'auto' | 'white' | 'black'
         self.background_edge_mode = config.get('background_edge_mode', 'auto')
+        # AI background removal using rembg
+        self.ai_background_removal = config.get('ai_background_removal', False)
         
         # Vytvoření složek
         self.input_dir = Path(config.get('input_dir', 'input_images'))
@@ -446,6 +448,19 @@ class UniversalProcessor:
                     rgba = img.convert('RGBA')
                     white_bg = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
                     img = Image.alpha_composite(white_bg, rgba).convert('RGB')
+                
+                # AI Background Removal using rembg
+                if self.ai_background_removal:
+                    print(f"  🤖 AI Background Removal: Odstraňuji pozadí...")
+                    try:
+                        from rembg import remove
+                        # rembg vrátí RGBA obrázek s průhledným pozadím
+                        img = remove(img)
+                        print(f"  🤖 AI Background Removal: Hotovo! Mode: {img.mode}")
+                    except ImportError:
+                        print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
+                    except Exception as e:
+                        print(f"  ⚠️ Chyba při AI background removal: {e}")
                 
                 print(f"Zpracovávám {image_path.name}: {img.width}x{img.height}px")
                 processed_img = self.smart_resize_and_center(img)
