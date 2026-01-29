@@ -320,11 +320,14 @@ class UniversalProcessor:
                 # Maska pro kompozici
                 if 'A' in cropped_product.getbands():
                     # Pro RGBA obrázky použij přímo alfa kanál (zachová anti-aliased hrany)
+                    print(f"  🔷 DEBUG: Image has Alpha channel, using native alpha for compositing")
                     rgba_arr = np.array(cropped_product)
                     alpha_channel = rgba_arr[:, :, 3]
+                    print(f"  🔷 DEBUG: Alpha channel stats - min: {alpha_channel.min()}, max: {alpha_channel.max()}")
                     mask_img = Image.fromarray(alpha_channel)
                 else:
                     # Pro RGB obrázky vypočítej masku z pozadí
+                    print(f"  🔶 DEBUG: Image is RGB (no alpha), using computed mask")
                     mask_img = Image.fromarray((mask_small.astype(np.uint8) * 255))
                 
                 resized_mask = mask_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
