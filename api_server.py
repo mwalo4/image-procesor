@@ -99,6 +99,10 @@ def get_processor_config(custom_config=None):
     if custom_config:
         default_config.update(custom_config)
     
+    # VYNUCENÉ nastavení - nesmí být přepsáno config.json ani custom config
+    # flatten_png_first MUSÍ být False pro správnou alfa kompozici
+    default_config['flatten_png_first'] = False
+    
     print(f"🎯 Finální konfigurace: {default_config}")
     return default_config
 
