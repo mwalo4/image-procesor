@@ -59,17 +59,95 @@ class UniversalProcessor:
         return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
     
     def _unmatte_rgba(self, img: Image.Image) -> Image.Image:
-        """Odstraní barevný matte (typicky bílý) z RGBA, aby se při kompozici nevytvářel světlý halo okraj."""
+        """Odstraní barevný matte z RGBA pouze na pixelech s bílým fringe.
+        
+        Nová verze: aplikuje unmatte POUZE na pixely které:
+        1. Jsou na okraji (sousedí s průhledností)
+        2. Mají světlou barvu blízkou matte (bílý fringe)
+        
+        Tmavé okrajové pixely zůstávají nedotčeny (žádný černý okraj).
+        """
         if img.mode != 'RGBA':
             return img
-        matte = np.array(self._hex_to_rgb(self.png_matte), dtype=np.float32) / 255.0
+        
         arr = np.array(img).astype(np.float32) / 255.0
         rgb = arr[:, :, :3]
-        a = arr[:, :, 3:4]
+        a = arr[:, :, 3]
+        
+        # Matte barva (typicky bílá)
+        matte = np.array(self._hex_to_rgb(self.png_matte), dtype=np.float32) / 255.0
+        
+        # Práh pro detekci "neprůhledných" a "průhledných" pixelů
+        opaque_threshold = 0.95
+        transparent_threshold = 0.05
+        
+        # Vytvoř binární masku neprůhledných a průhledných pixelů
+        opaque_mask = a >= opaque_threshold
+        transparent_mask = a <= transparent_threshold
+        
+        # Jednoduchá dilatace pomocí numpy
+        def dilate_mask(mask, iterations=1):
+            result = mask.copy()
+            for _ in range(iterations):
+                padded = np.pad(result, 1, mode='constant', constant_values=False)
+                dilated = (
+                    padded[:-2, :-2] | padded[:-2, 1:-1] | padded[:-2, 2:] |
+                    padded[1:-1, :-2] | padded[1:-1, 1:-1] | padded[1:-1, 2:] |
+                    padded[2:, :-2] | padded[2:, 1:-1] | padded[2:, 2:]
+                )
+                result = dilated
+            return result
+        
+        # Dilatuj průhlednou oblast
+        dilated_transparent = dilate_mask(transparent_mask, iterations=2)
+        
+        # Okrajové pixely (sousedí s průhledností, nejsou plně neprůhledné/průhledné)
+        edge_mask = dilated_transparent & (~opaque_mask) & (~transparent_mask)
+        
+        # Anti-aliased hrany s nízkou alfou
+        low_alpha_mask = (a < 0.5) & (a > transparent_threshold)
+        dilated_opaque = dilate_mask(opaque_mask, iterations=1)
+        antialiased_edges = low_alpha_mask & dilated_opaque
+        
+        # Kombinuj obě masky
+        potential_fringe_mask = edge_mask | antialiased_edges
+        
+        # Pokud nemáme žádné potenciální fringe pixely, vrať originál
+        if not np.any(potential_fringe_mask):
+            return img
+        
+        # === KLÍČOVÁ ZMĚNA: Detekce bílého fringe ===
+        # Pixel má bílý fringe pokud je jeho barva blízká matte barvě
+        # Vypočítej vzdálenost od matte barvy
+        rgb_distance = np.sqrt(np.sum((rgb - matte) ** 2, axis=2))
+        
+        # Práh pro "blízko matte" - pixel musí být docela světlý
+        # Nižší hodnota = přísněji (detekuje jen velmi bílé pixely)
+        white_fringe_threshold = 0.35  # Max vzdálenost od bílé
+        
+        # Pixel má bílý fringe jen pokud je světlý (blízko matte)
+        has_white_fringe = rgb_distance < white_fringe_threshold
+        
+        # Finální maska: okrajové pixely které SKUTEČNĚ mají bílý fringe
+        final_unmatte_mask = potential_fringe_mask & has_white_fringe
+        
+        # Pokud žádný pixel nemá bílý fringe, vrať originál
+        if not np.any(final_unmatte_mask):
+            return img
+        
         eps = 1e-6
-        rgb_unmatted = (rgb - matte * (1.0 - a)) / np.clip(a, eps, 1.0)
+        a_expanded = a[:, :, np.newaxis]
+        
+        # Vypočítej unmatted RGB
+        rgb_unmatted = (rgb - matte * (1.0 - a_expanded)) / np.clip(a_expanded, eps, 1.0)
         rgb_unmatted = np.clip(rgb_unmatted, 0.0, 1.0)
-        out = np.concatenate([rgb_unmatted, a], axis=2)
+        
+        # Aplikuj unmatte POUZE na pixely s bílým fringe
+        final_unmatte_mask_3d = final_unmatte_mask[:, :, np.newaxis]
+        rgb_result = np.where(final_unmatte_mask_3d, rgb_unmatted, rgb)
+        
+        # Sestav výstup
+        out = np.concatenate([rgb_result, a[:, :, np.newaxis]], axis=2)
         out = (out * 255.0 + 0.5).astype(np.uint8)
         return Image.fromarray(out, mode='RGBA')
     
@@ -239,8 +317,16 @@ class UniversalProcessor:
                 new_height = max(1, int(product_height * scale))
                 resized_product = cropped_product.resize((new_width, new_height), Image.Resampling.LANCZOS)
                 
-                # Maska s anti-alias / soft edge
-                mask_img = Image.fromarray((mask_small.astype(np.uint8) * 255))
+                # Maska pro kompozici
+                if 'A' in cropped_product.getbands():
+                    # Pro RGBA obrázky použij přímo alfa kanál (zachová anti-aliased hrany)
+                    rgba_arr = np.array(cropped_product)
+                    alpha_channel = rgba_arr[:, :, 3]
+                    mask_img = Image.fromarray(alpha_channel)
+                else:
+                    # Pro RGB obrázky vypočítej masku z pozadí
+                    mask_img = Image.fromarray((mask_small.astype(np.uint8) * 255))
+                
                 resized_mask = mask_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
                 if self.soft_edges and self.soft_edges_radius > 0:
                     resized_mask = resized_mask.filter(ImageFilter.GaussianBlur(radius=self.soft_edges_radius))
@@ -266,7 +352,7 @@ class UniversalProcessor:
                 paste_x = max(margin_x, min(paste_x, self.target_width - margin_x - new_width))
                 paste_y = max(margin_y, min(paste_y, self.target_height - margin_y - new_height))
                 
-                # Vložit s maskou
+                # Vložit s maskou - použij přímo resized_mask (z alfa kanálu pro RGBA)
                 result.paste(resized_product.convert('RGB'), (paste_x, paste_y), resized_mask)
                 
                 print(f"  Produkt: {product_width}x{product_height}px → {new_width}x{new_height}px")
