@@ -355,8 +355,17 @@ class UniversalProcessor:
                 paste_x = max(margin_x, min(paste_x, self.target_width - margin_x - new_width))
                 paste_y = max(margin_y, min(paste_y, self.target_height - margin_y - new_height))
                 
-                # Vložit s maskou - použij přímo resized_mask (z alfa kanálu pro RGBA)
-                result.paste(resized_product.convert('RGB'), (paste_x, paste_y), resized_mask)
+                # Vložit s maskou - pro RGBA správně blenduj proti pozadí (ne černé!)
+                if 'A' in resized_product.getbands():
+                    # Vytvoř RGB verzi blendovanou s cílovou barvou pozadí
+                    bg_for_blend = Image.new('RGBA', resized_product.size, bg_color + (255,))
+                    blended = Image.alpha_composite(bg_for_blend, resized_product)
+                    rgb_product = blended.convert('RGB')
+                    print(f"  🔷 DEBUG: RGBA->RGB blended against background {bg_color}")
+                else:
+                    rgb_product = resized_product.convert('RGB')
+                
+                result.paste(rgb_product, (paste_x, paste_y), resized_mask)
                 
                 print(f"  Produkt: {product_width}x{product_height}px → {new_width}x{new_height}px")
                 print(f"  Pozice: ({paste_x}, {paste_y})")
