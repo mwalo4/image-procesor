@@ -475,25 +475,23 @@ class UniversalProcessor:
                         rembg_rgba = rembg_result.convert('RGBA')
                         print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_rgba.mode}")
 
-                        # Strategie: rembg použijeme jen na vyčištění pozadí,
-                        # výsledek blendujeme zpět s originálem a pokračujeme jako RGB.
-                        # Kde rembg detekoval produkt (alpha>0) → čisté rembg hrany na cílovém pozadí.
-                        # Kde rembg odstranil příliš (alpha=0) → originální pixely zůstanou.
-                        # Výsledek je RGB → standardní flood-fill pipeline pro bbox.
+                        # Strategie: na originální pixely aplikujeme rembg alfu
+                        # jako masku pro záměnu pozadí. Žádné blendování dvou obrázků.
+                        # Produkt (alfa=1): originální pixel beze změny
+                        # Pozadí (alfa=0): cílová barva pozadí
+                        # Hrana (částečná alfa): plynulý přechod z produktu do cílové barvy
                         bg_color = self._hex_to_rgb(self.background_color)
-                        bg_layer = Image.new('RGBA', rembg_rgba.size, bg_color + (255,))
-                        clean = Image.alpha_composite(bg_layer, rembg_rgba).convert('RGB')
 
                         rembg_alpha = np.array(rembg_rgba)[:, :, 3]
                         alpha_f = rembg_alpha.astype(np.float32) / 255.0
                         alpha_3d = alpha_f[:, :, np.newaxis]
 
-                        clean_arr = np.array(clean).astype(np.float32)
                         orig_arr = np.array(original_rgb).astype(np.float32)
-                        blended = (clean_arr * alpha_3d + orig_arr * (1.0 - alpha_3d)).astype(np.uint8)
+                        bg_arr = np.full_like(orig_arr, bg_color)
+                        result = orig_arr * alpha_3d + bg_arr * (1.0 - alpha_3d)
 
-                        img = Image.fromarray(blended, 'RGB')
-                        print(f"  🤖 AI Background Removal: Blended zpět do RGB pro standardní pipeline")
+                        img = Image.fromarray(result.astype(np.uint8), 'RGB')
+                        print(f"  🤖 AI Background Removal: Pozadí nahrazeno, výstup RGB pro standardní pipeline")
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
