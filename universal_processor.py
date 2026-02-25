@@ -470,9 +470,27 @@ class UniversalProcessor:
                     print(f"  🤖 AI Background Removal: Odstraňuji pozadí...")
                     try:
                         from rembg import remove
+                        # Uložíme originál pro rescue check (rembg může být příliš agresivní)
+                        original_rgb = img.convert('RGB')
                         # rembg vrátí RGBA obrázek s průhledným pozadím
                         img = remove(img)
                         print(f"  🤖 AI Background Removal: Hotovo! Mode: {img.mode}")
+
+                        # Rescue: zachráníme pixely, které rembg chybně odstranil
+                        # Porovnáme rembg alfu s flood-fill detekcí na originálním obrázku
+                        flood_product_mask = ~self._compute_background_mask_rgb(original_rgb)
+                        rembg_alpha = np.array(img.convert('RGBA'))[:, :, 3]
+                        # Pixely kde rembg říká "pozadí" ale flood-fill říká "produkt"
+                        rescued = flood_product_mask & (rembg_alpha < self.alpha_threshold)
+                        if np.any(rescued):
+                            rescued_count = int(np.sum(rescued))
+                            total_product = int(np.sum(flood_product_mask))
+                            print(f"  🔄 Rescue: {rescued_count} pixelů ({100*rescued_count/total_product:.1f}%) zachráněno z AI removal")
+                            img_arr = np.array(img.convert('RGBA'))
+                            orig_arr = np.array(original_rgb)
+                            img_arr[rescued, :3] = orig_arr[rescued]
+                            img_arr[rescued, 3] = 255
+                            img = Image.fromarray(img_arr, 'RGBA')
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
