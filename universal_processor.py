@@ -14,6 +14,116 @@ import argparse
 import numpy as np
 from collections import deque
 
+# Optional scipy for image processing operations (gaussian blur, uniform filter, morphology)
+# Falls back to pure NumPy implementations if scipy is not available
+try:
+    from scipy.ndimage import gaussian_filter as _scipy_gaussian
+    from scipy.ndimage import uniform_filter as _scipy_uniform
+    from scipy.ndimage import binary_erosion as _scipy_erode
+    from scipy.ndimage import binary_dilation as _scipy_dilate
+    _HAS_SCIPY = True
+except ImportError:
+    _HAS_SCIPY = False
+
+
+def _np_gaussian_blur(arr: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+    """Pure NumPy Gaussian-like blur using separable 3x3 approximation kernel.
+    Output has the same shape as input."""
+    kernel_1d = np.array([1.0, 2.0, 1.0]) / 4.0
+    arr64 = arr.astype(np.float64)
+    # Horizontal pass (pad columns only)
+    padded_h = np.pad(arr64, ((0, 0), (1, 1)), mode='edge')
+    h_blur = (padded_h[:, :-2] * kernel_1d[0] +
+              padded_h[:, 1:-1] * kernel_1d[1] +
+              padded_h[:, 2:] * kernel_1d[2])
+    # Vertical pass (pad rows only)
+    padded_v = np.pad(h_blur, ((1, 1), (0, 0)), mode='edge')
+    result = (padded_v[:-2, :] * kernel_1d[0] +
+              padded_v[1:-1, :] * kernel_1d[1] +
+              padded_v[2:, :] * kernel_1d[2])
+    return result
+
+
+def _np_uniform_filter(arr: np.ndarray, size: int = 5) -> np.ndarray:
+    """Pure NumPy uniform (box) filter using cumulative sums for O(n) performance.
+    Output has the same shape as input."""
+    r = size // 2
+    arr64 = arr.astype(np.float64)
+    h, w = arr64.shape
+    padded = np.pad(arr64, r, mode='edge')
+    # padded shape: (h + 2*r, w + 2*r) = (h + size-1, w + size-1)
+    # Integral image approach: prepend zeros so cumsum gives prefix sums
+    # Vertical cumsum
+    cs = np.cumsum(padded, axis=0)
+    # Prepend a row of zeros for the prefix-sum subtraction
+    cs = np.concatenate([np.zeros((1, cs.shape[1]), dtype=np.float64), cs], axis=0)
+    v_sum = cs[size:, :] - cs[:-size, :]  # shape: (h, w + 2*r)
+    # Horizontal cumsum
+    cs2 = np.cumsum(v_sum, axis=1)
+    cs2 = np.concatenate([np.zeros((cs2.shape[0], 1), dtype=np.float64), cs2], axis=1)
+    box_sum = cs2[:, size:] - cs2[:, :-size]  # shape: (h, w)
+    return box_sum / (size * size)
+
+
+def _np_binary_erosion(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
+    """Pure NumPy binary erosion with 3x3 structuring element."""
+    result = mask.copy()
+    for _ in range(iterations):
+        padded = np.pad(result, 1, mode='constant', constant_values=False)
+        # A pixel survives erosion only if ALL 8 neighbors + itself are True
+        eroded = (
+            padded[:-2, :-2] & padded[:-2, 1:-1] & padded[:-2, 2:] &
+            padded[1:-1, :-2] & padded[1:-1, 1:-1] & padded[1:-1, 2:] &
+            padded[2:, :-2] & padded[2:, 1:-1] & padded[2:, 2:]
+        )
+        result = eroded
+    return result
+
+
+def _np_binary_dilation(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
+    """Pure NumPy binary dilation with 3x3 structuring element."""
+    result = mask.copy()
+    for _ in range(iterations):
+        padded = np.pad(result, 1, mode='constant', constant_values=False)
+        # A pixel is set if ANY of 8 neighbors + itself is True
+        dilated = (
+            padded[:-2, :-2] | padded[:-2, 1:-1] | padded[:-2, 2:] |
+            padded[1:-1, :-2] | padded[1:-1, 1:-1] | padded[1:-1, 2:] |
+            padded[2:, :-2] | padded[2:, 1:-1] | padded[2:, 2:]
+        )
+        result = dilated
+    return result
+
+
+def gaussian_blur(arr: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+    """Gaussian blur: uses scipy if available, otherwise NumPy fallback."""
+    if _HAS_SCIPY:
+        return _scipy_gaussian(arr, sigma=sigma)
+    return _np_gaussian_blur(arr, sigma=sigma)
+
+
+def uniform_filter(arr: np.ndarray, size: int = 5) -> np.ndarray:
+    """Uniform (box) filter: uses scipy if available, otherwise NumPy fallback."""
+    if _HAS_SCIPY:
+        return _scipy_uniform(arr, size=size)
+    return _np_uniform_filter(arr, size=size)
+
+
+def binary_erosion(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
+    """Binary erosion: uses scipy if available, otherwise NumPy fallback."""
+    if _HAS_SCIPY:
+        structure = np.ones((3, 3), dtype=bool)
+        return _scipy_erode(mask, structure=structure, iterations=iterations)
+    return _np_binary_erosion(mask, iterations=iterations)
+
+
+def binary_dilation(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
+    """Binary dilation: uses scipy if available, otherwise NumPy fallback."""
+    if _HAS_SCIPY:
+        structure = np.ones((3, 3), dtype=bool)
+        return _scipy_dilate(mask, structure=structure, iterations=iterations)
+    return _np_binary_dilation(mask, iterations=iterations)
+
 class UniversalProcessor:
     def __init__(self, config: Dict):
         self.config = config
@@ -53,7 +163,7 @@ class UniversalProcessor:
         # Gradient edge barrier pro flood fill (zabraňuje vtékání do bílých/černých produktů)
         # Vyšší hodnota = méně bariér (permisivnější fill), nižší = více bariér
         # 0 = vypnuto (legacy chování)
-        self.edge_barrier_threshold = config.get('edge_barrier_threshold', 15)
+        self.edge_barrier_threshold = config.get('edge_barrier_threshold', 10)
         
         # Vytvoření složek
         self.input_dir = Path(config.get('input_dir', 'input_images'))
@@ -211,10 +321,15 @@ class UniversalProcessor:
         white_like = mean_brightness >= effective_white_threshold
         black_like = mean_brightness <= self.black_threshold
 
-        # --- Edge-barrier: gradient jako bariéra pro flood fill ---
-        # Zabraňuje vtékání do produktů, které sdílejí barvu s pozadím
+        # --- Edge barrier for flood fill ---
+        # Gradient-based barrier prevents flood-fill from bleeding into white
+        # products that share brightness with the background.
         if self.edge_barrier_threshold > 0:
-            padded = np.pad(mean_brightness, 1, mode='edge')
+            # Pre-smooth brightness to reduce noise on uniform backgrounds
+            smoothed_brightness = gaussian_blur(mean_brightness.astype(np.float64), sigma=1.0)
+
+            # Gradient barrier (on smoothed brightness for cleaner edges)
+            padded = np.pad(smoothed_brightness, 1, mode='edge')
             gx = (padded[1:-1, 2:] - padded[1:-1, :-2]) / 2.0
             gy = (padded[2:, 1:-1] - padded[:-2, 1:-1]) / 2.0
             grad_mag = np.sqrt(gx * gx + gy * gy)
@@ -262,6 +377,7 @@ class UniversalProcessor:
                 visited[y, x+1] = True; q.append((y, x+1))
             if x-1 >= 0 and not visited[y, x-1] and seed_mask[y, x-1]:
                 visited[y, x-1] = True; q.append((y, x-1))
+
         visited_img = Image.fromarray((visited.astype(np.uint8) * 255))
         up_mask = visited_img.resize((orig_w, orig_h), Image.Resampling.NEAREST)
         return np.array(up_mask) > 0
@@ -620,7 +736,7 @@ def main():
     parser.add_argument('--png-edge-fix', action='store_true', help='Použít PNG unmatte pro odstranění bílého lemu z předchozího matte')
     parser.add_argument('--png-matte', default='#FFFFFF', help='Barva matte pro PNG unmatte (hex, výchozí: #FFFFFF)')
     parser.add_argument('--flatten-png-first', action='store_true', help='Nejprve zploštit PNG s alfou na bílé pozadí (simulace JPG)')
-    parser.add_argument('--edge-barrier-threshold', type=int, default=15, help='Práh gradientu pro bariéru flood fill (0=vypnuto, výchozí: 15)')
+    parser.add_argument('--edge-barrier-threshold', type=int, default=10, help='Práh gradientu pro bariéru flood fill (0=vypnuto, výchozí: 10)')
     
     args = parser.parse_args()
     
