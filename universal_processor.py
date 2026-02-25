@@ -600,6 +600,15 @@ class UniversalProcessor:
 
                         rembg_alpha = np.array(rembg_rgba)[:, :, 3]
                         alpha_f = rembg_alpha.astype(np.float32) / 255.0
+
+                        # Alpha thresholding: rembg dává bílým produktům nízkou alfu (0.1-0.3)
+                        # což způsobuje duchové/ghosting. Řešení: cokoliv nad low_thresh
+                        # považujeme za plný produkt (1.0), pod high_thresh za pozadí (0.0),
+                        # mezi tím plynulý přechod pro hladké hrany.
+                        low_thresh = 0.05
+                        high_thresh = 0.2
+                        alpha_f = np.clip((alpha_f - low_thresh) / (high_thresh - low_thresh), 0.0, 1.0)
+
                         alpha_3d = alpha_f[:, :, np.newaxis]
 
                         orig_arr = np.array(original_rgb).astype(np.float32)
