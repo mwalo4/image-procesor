@@ -37,18 +37,18 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AIRM-01 | TBD | Pending |
-| AIRM-02 | TBD | Pending |
-| AIRM-03 | TBD | Pending |
-| PROC-01 | TBD | Pending |
-| PROC-02 | TBD | Pending |
-| COMP-01 | TBD | Pending |
+| PROC-01 | Phase 1 | Pending |
+| PROC-02 | Phase 1 | Pending |
+| AIRM-01 | Phase 2 | Pending |
+| AIRM-02 | Phase 2 | Pending |
+| AIRM-03 | Phase 2 | Pending |
+| COMP-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 6 total
-- Mapped to phases: 0
-- Unmapped: 6 ⚠️
+- Mapped to phases: 6
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after roadmap creation*
