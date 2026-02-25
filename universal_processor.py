@@ -50,6 +50,10 @@ class UniversalProcessor:
         self.background_edge_mode = config.get('background_edge_mode', 'auto')
         # AI background removal using rembg
         self.ai_background_removal = config.get('ai_background_removal', False)
+        # Gradient edge barrier pro flood fill (zabraňuje vtékání do bílých/černých produktů)
+        # Vyšší hodnota = méně bariér (permisivnější fill), nižší = více bariér
+        # 0 = vypnuto (legacy chování)
+        self.edge_barrier_threshold = config.get('edge_barrier_threshold', 15)
         
         # Vytvoření složek
         self.input_dir = Path(config.get('input_dir', 'input_images'))
@@ -206,6 +210,18 @@ class UniversalProcessor:
         
         white_like = mean_brightness >= effective_white_threshold
         black_like = mean_brightness <= self.black_threshold
+
+        # --- Edge-barrier: gradient jako bariéra pro flood fill ---
+        # Zabraňuje vtékání do produktů, které sdílejí barvu s pozadím
+        if self.edge_barrier_threshold > 0:
+            padded = np.pad(mean_brightness, 1, mode='edge')
+            gx = (padded[1:-1, 2:] - padded[1:-1, :-2]) / 2.0
+            gy = (padded[2:, 1:-1] - padded[:-2, 1:-1]) / 2.0
+            grad_mag = np.sqrt(gx * gx + gy * gy)
+            is_edge_barrier = grad_mag >= self.edge_barrier_threshold
+            white_like = white_like & ~is_edge_barrier
+            black_like = black_like & ~is_edge_barrier
+
         h, w = white_like.shape
         visited = np.zeros((h, w), dtype=bool)
         q = deque()
@@ -585,6 +601,7 @@ def main():
     parser.add_argument('--png-edge-fix', action='store_true', help='Použít PNG unmatte pro odstranění bílého lemu z předchozího matte')
     parser.add_argument('--png-matte', default='#FFFFFF', help='Barva matte pro PNG unmatte (hex, výchozí: #FFFFFF)')
     parser.add_argument('--flatten-png-first', action='store_true', help='Nejprve zploštit PNG s alfou na bílé pozadí (simulace JPG)')
+    parser.add_argument('--edge-barrier-threshold', type=int, default=15, help='Práh gradientu pro bariéru flood fill (0=vypnuto, výchozí: 15)')
     
     args = parser.parse_args()
     
@@ -610,7 +627,8 @@ def main():
         'soft_edges_radius': args.soft_edges_radius,
         'png_edge_fix': args.png_edge_fix,
         'png_matte': args.png_matte,
-        'flatten_png_first': args.flatten_png_first
+        'flatten_png_first': args.flatten_png_first,
+        'edge_barrier_threshold': args.edge_barrier_threshold
     }
     
     # Kontrola existence vstupní složky
