@@ -470,30 +470,30 @@ class UniversalProcessor:
                     print(f"  🤖 AI Background Removal: Odstraňuji pozadí...")
                     try:
                         from rembg import remove
-                        # Uložíme originál pro fallback (rembg může být příliš agresivní)
                         original_rgb = img.convert('RGB')
-                        # rembg vrátí RGBA obrázek s průhledným pozadím
                         rembg_result = remove(img)
-                        print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_result.mode}")
+                        rembg_rgba = rembg_result.convert('RGBA')
+                        print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_rgba.mode}")
 
-                        # Safety check: porovnáme kolik produktu rembg zachovalo
-                        # vs. kolik detekoval flood-fill na originálním obrázku
-                        flood_product_mask = ~self._compute_background_mask_rgb(original_rgb)
-                        rembg_alpha = np.array(rembg_result.convert('RGBA'))[:, :, 3]
-                        rembg_product_pixels = int(np.sum(rembg_alpha > self.alpha_threshold))
-                        flood_product_pixels = int(np.sum(flood_product_mask))
+                        # Strategie: rembg použijeme jen na vyčištění pozadí,
+                        # výsledek blendujeme zpět s originálem a pokračujeme jako RGB.
+                        # Kde rembg detekoval produkt (alpha>0) → čisté rembg hrany na cílovém pozadí.
+                        # Kde rembg odstranil příliš (alpha=0) → originální pixely zůstanou.
+                        # Výsledek je RGB → standardní flood-fill pipeline pro bbox.
+                        bg_color = self._hex_to_rgb(self.background_color)
+                        bg_layer = Image.new('RGBA', rembg_rgba.size, bg_color + (255,))
+                        clean = Image.alpha_composite(bg_layer, rembg_rgba).convert('RGB')
 
-                        if flood_product_pixels > 0:
-                            keep_ratio = rembg_product_pixels / flood_product_pixels
-                            print(f"  🔍 rembg zachovalo {keep_ratio:.0%} produktu (rembg: {rembg_product_pixels}px, flood-fill: {flood_product_pixels}px)")
-                            if keep_ratio < 0.7:
-                                # rembg odstranilo víc než 30% produktu → příliš agresivní → fallback
-                                print(f"  ⚠️ rembg příliš agresivní ({keep_ratio:.0%}), používám originál bez AI removal")
-                                img = original_rgb
-                            else:
-                                img = rembg_result
-                        else:
-                            img = rembg_result
+                        rembg_alpha = np.array(rembg_rgba)[:, :, 3]
+                        alpha_f = rembg_alpha.astype(np.float32) / 255.0
+                        alpha_3d = alpha_f[:, :, np.newaxis]
+
+                        clean_arr = np.array(clean).astype(np.float32)
+                        orig_arr = np.array(original_rgb).astype(np.float32)
+                        blended = (clean_arr * alpha_3d + orig_arr * (1.0 - alpha_3d)).astype(np.uint8)
+
+                        img = Image.fromarray(blended, 'RGB')
+                        print(f"  🤖 AI Background Removal: Blended zpět do RGB pro standardní pipeline")
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
