@@ -470,27 +470,30 @@ class UniversalProcessor:
                     print(f"  🤖 AI Background Removal: Odstraňuji pozadí...")
                     try:
                         from rembg import remove
-                        # Uložíme originál pro rescue check (rembg může být příliš agresivní)
+                        # Uložíme originál pro fallback (rembg může být příliš agresivní)
                         original_rgb = img.convert('RGB')
                         # rembg vrátí RGBA obrázek s průhledným pozadím
-                        img = remove(img)
-                        print(f"  🤖 AI Background Removal: Hotovo! Mode: {img.mode}")
+                        rembg_result = remove(img)
+                        print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_result.mode}")
 
-                        # Rescue: zachráníme pixely, které rembg chybně odstranil
-                        # Porovnáme rembg alfu s flood-fill detekcí na originálním obrázku
+                        # Safety check: porovnáme kolik produktu rembg zachovalo
+                        # vs. kolik detekoval flood-fill na originálním obrázku
                         flood_product_mask = ~self._compute_background_mask_rgb(original_rgb)
-                        rembg_alpha = np.array(img.convert('RGBA'))[:, :, 3]
-                        # Pixely kde rembg říká "pozadí" ale flood-fill říká "produkt"
-                        rescued = flood_product_mask & (rembg_alpha < self.alpha_threshold)
-                        if np.any(rescued):
-                            rescued_count = int(np.sum(rescued))
-                            total_product = int(np.sum(flood_product_mask))
-                            print(f"  🔄 Rescue: {rescued_count} pixelů ({100*rescued_count/total_product:.1f}%) zachráněno z AI removal")
-                            img_arr = np.array(img.convert('RGBA'))
-                            orig_arr = np.array(original_rgb)
-                            img_arr[rescued, :3] = orig_arr[rescued]
-                            img_arr[rescued, 3] = 255
-                            img = Image.fromarray(img_arr, 'RGBA')
+                        rembg_alpha = np.array(rembg_result.convert('RGBA'))[:, :, 3]
+                        rembg_product_pixels = int(np.sum(rembg_alpha > self.alpha_threshold))
+                        flood_product_pixels = int(np.sum(flood_product_mask))
+
+                        if flood_product_pixels > 0:
+                            keep_ratio = rembg_product_pixels / flood_product_pixels
+                            print(f"  🔍 rembg zachovalo {keep_ratio:.0%} produktu (rembg: {rembg_product_pixels}px, flood-fill: {flood_product_pixels}px)")
+                            if keep_ratio < 0.7:
+                                # rembg odstranilo víc než 30% produktu → příliš agresivní → fallback
+                                print(f"  ⚠️ rembg příliš agresivní ({keep_ratio:.0%}), používám originál bez AI removal")
+                                img = original_rgb
+                            else:
+                                img = rembg_result
+                        else:
+                            img = rembg_result
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
