@@ -26,7 +26,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Processing the Natura Siberica test image in non-AI mode produces an output where white product surfaces are not eaten away by the flood-fill mask
   2. The output image shows all three products with their white areas intact and visually distinct from the #F3F3F3 background
   3. A product with white areas touching the image edge does not disappear or become partially transparent in the output
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 01-01-PLAN.md — Strengthen flood-fill edge barrier with multi-signal detection + visual verification
 
 ### Phase 2: AI Post-Processing Fix
 **Goal**: Rembg output is corrected so partially-alpha product pixels become fully opaque and no product in a multi-product composition is removed
@@ -55,6 +58,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Flood-Fill Fix | 0/? | Not started | - |
+| 1. Flood-Fill Fix | 0/1 | Planned | - |
 | 2. AI Post-Processing Fix | 0/? | Not started | - |
 | 3. Regression Validation | 0/? | Not started | - |
