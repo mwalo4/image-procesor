@@ -586,37 +586,25 @@ class UniversalProcessor:
                     print(f"  🤖 AI Background Removal: Odstraňuji pozadí...")
                     try:
                         from rembg import remove
-                        original_rgb = img.convert('RGB')
                         rembg_result = remove(img)
                         rembg_rgba = rembg_result.convert('RGBA')
                         print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_rgba.mode}")
 
-                        # Strategie: na originální pixely aplikujeme rembg alfu
-                        # jako masku pro záměnu pozadí. Žádné blendování dvou obrázků.
-                        # Produkt (alfa=1): originální pixel beze změny
-                        # Pozadí (alfa=0): cílová barva pozadí
-                        # Hrana (částečná alfa): plynulý přechod z produktu do cílové barvy
-                        bg_color = self._hex_to_rgb(self.background_color)
+                        # Strategie: nechat výstup jako RGBA, ale opravit alfu pro bílé produkty.
+                        # rembg dává bílým produktům nízkou alfu (ghosting). Fix: pro jasné/bílé
+                        # pixely s jakoukoliv alfou → boost na plnou opacitu. Tmavé pixely
+                        # (stíny pozadí) nechat — ty rembg správně identifikoval.
+                        # Výstup zůstává RGBA → pipeline použije alpha pro bbox detekci.
+                        arr = np.array(rembg_rgba)
+                        alpha = arr[:, :, 3]
+                        brightness = np.mean(arr[:, :, :3], axis=2)
 
-                        rembg_alpha = np.array(rembg_rgba)[:, :, 3]
-                        alpha_f = rembg_alpha.astype(np.float32) / 255.0
+                        # Jasné pixely (>200) s jakoukoliv alfou (>10) = bílý produkt → plná opacita
+                        is_bright_with_alpha = (brightness > 200) & (alpha > 10)
+                        arr[:, :, 3] = np.where(is_bright_with_alpha, np.uint8(255), alpha)
 
-                        # Alpha thresholding: rembg dává bílým produktům nízkou alfu (0.1-0.3)
-                        # což způsobuje duchové/ghosting. Řešení: cokoliv nad low_thresh
-                        # považujeme za plný produkt (1.0), pod high_thresh za pozadí (0.0),
-                        # mezi tím plynulý přechod pro hladké hrany.
-                        low_thresh = 0.05
-                        high_thresh = 0.2
-                        alpha_f = np.clip((alpha_f - low_thresh) / (high_thresh - low_thresh), 0.0, 1.0)
-
-                        alpha_3d = alpha_f[:, :, np.newaxis]
-
-                        orig_arr = np.array(original_rgb).astype(np.float32)
-                        bg_arr = np.full_like(orig_arr, bg_color)
-                        result = orig_arr * alpha_3d + bg_arr * (1.0 - alpha_3d)
-
-                        img = Image.fromarray(result.astype(np.uint8), 'RGB')
-                        print(f"  🤖 AI Background Removal: Pozadí nahrazeno, výstup RGB pro standardní pipeline")
+                        img = Image.fromarray(arr, 'RGBA')
+                        print(f"  🤖 AI Background Removal: Alpha opravena, výstup RGBA pro standardní pipeline")
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
