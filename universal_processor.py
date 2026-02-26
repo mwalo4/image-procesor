@@ -599,12 +599,18 @@ class UniversalProcessor:
                         original_rgb = img.convert('RGB')
                         arr = np.array(rembg_rgba)
                         rembg_alpha = arr[:, :, 3]
+                        orig_arr = np.array(original_rgb)
 
                         # Flood-fill detekce na originálním obrázku
                         flood_bg_mask = self._compute_background_mask_rgb(original_rgb)
                         flood_product_alpha = (~flood_bg_mask).astype(np.uint8) * 255
 
-                        # Kombinace: maximum z obou detekcí
+                        # Kde flood-fill detekoval produkt ale rembg ho smazal:
+                        # rembg vynuloval RGB na černou → musíme vzít RGB z originálu
+                        rembg_missed = (flood_product_alpha > 0) & (rembg_alpha < 128)
+                        arr[rembg_missed, :3] = orig_arr[rembg_missed]
+
+                        # Kombinace alpha: maximum z obou detekcí
                         arr[:, :, 3] = np.maximum(rembg_alpha, flood_product_alpha)
 
                         img = Image.fromarray(arr, 'RGBA')
