@@ -605,13 +605,14 @@ class UniversalProcessor:
                         flood_bg_mask = self._compute_background_mask_rgb(original_rgb)
                         flood_product_alpha = (~flood_bg_mask).astype(np.uint8) * 255
 
-                        # Kde flood-fill detekoval produkt ale rembg ho smazal:
-                        # rembg vynuloval RGB na černou → musíme vzít RGB z originálu
-                        rembg_missed = (flood_product_alpha > 0) & (rembg_alpha < 128)
-                        arr[rembg_missed, :3] = orig_arr[rembg_missed]
-
-                        # Kombinace alpha: maximum z obou detekcí
-                        arr[:, :, 3] = np.maximum(rembg_alpha, flood_product_alpha)
+                        # Kde rembg má alpha > 0: důvěřuj rembg (hladké hrany).
+                        # Kde rembg má alpha == 0 ALE flood-fill říká produkt:
+                        # rembg ten produkt kompletně smazal → obnov z originálu.
+                        # Tím se zachovají rembg hrany pro tubu/krabičku a flood-fill
+                        # pouze doplní oblasti co rembg úplně přehlédl.
+                        recovery_mask = (rembg_alpha == 0) & (flood_product_alpha > 0)
+                        arr[recovery_mask, :3] = orig_arr[recovery_mask]
+                        arr[:, :, 3] = np.where(rembg_alpha > 0, rembg_alpha, flood_product_alpha)
 
                         img = Image.fromarray(arr, 'RGBA')
                         print(f"  🤖 AI Background Removal: Alpha = max(rembg, flood-fill), výstup RGBA")
