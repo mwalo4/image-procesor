@@ -590,37 +590,25 @@ class UniversalProcessor:
                         rembg_rgba = rembg_result.convert('RGBA')
                         print(f"  🤖 AI Background Removal: Hotovo! Mode: {rembg_rgba.mode}")
 
-                        # Strategie: kombinovat rembg + flood-fill.
-                        # rembg chytí většinu produktů, ale kompletně odstraní bílé produkty (alpha=0).
-                        # Flood-fill na originálu chytí i bílé produkty (i když ne dokonale).
-                        # Spojíme oba: kde rembg řekne "produkt" NEBO flood-fill řekne "produkt"
-                        # → použijeme originální pixel. Zbytek = cílové pozadí.
+                        # Strategie: doplnit rembg alpha flood-fill maskou.
+                        # rembg má hladké hrany pro produkty které detekuje (tuba, pravá krabice),
+                        # ale kompletně odstraní bílé produkty (alpha=0).
+                        # Flood-fill na originálu chytí i bílé produkty.
+                        # Řešení: max(rembg_alpha, flood_fill_alpha) pro každý pixel.
+                        # Výstup zůstává RGBA → pipeline composites pomocí alpha.
                         original_rgb = img.convert('RGB')
-                        bg_color = self._hex_to_rgb(self.background_color)
-
-                        rembg_alpha = np.array(rembg_rgba)[:, :, 3].astype(np.float32) / 255.0
+                        arr = np.array(rembg_rgba)
+                        rembg_alpha = arr[:, :, 3]
 
                         # Flood-fill detekce na originálním obrázku
                         flood_bg_mask = self._compute_background_mask_rgb(original_rgb)
-                        flood_product = ~flood_bg_mask  # co flood-fill považuje za produkt
+                        flood_product_alpha = (~flood_bg_mask).astype(np.uint8) * 255
 
-                        # Kombinovaná maska:
-                        # - rembg produkt (alpha > 0.5): použij rembg alpha (hladké hrany)
-                        # - flood-fill produkt ALE rembg odstranil (alpha < 0.5): obnov z originálu
-                        #   ALE jen pokud pixel není čistě bílý (pozadí=~255, produkt=~240-250)
-                        combined_alpha = rembg_alpha.copy()
-                        orig_brightness = np.mean(np.array(original_rgb), axis=2)
-                        rembg_missed = flood_product & (rembg_alpha < 0.5) & (orig_brightness < 252)
-                        combined_alpha[rembg_missed] = 1.0
+                        # Kombinace: maximum z obou detekcí
+                        arr[:, :, 3] = np.maximum(rembg_alpha, flood_product_alpha)
 
-                        # Kompozice proti cílovému pozadí
-                        combined_3d = combined_alpha[:, :, np.newaxis]
-                        orig_arr = np.array(original_rgb).astype(np.float32)
-                        bg_arr = np.full_like(orig_arr, bg_color)
-                        result = orig_arr * combined_3d + bg_arr * (1.0 - combined_3d)
-
-                        img = Image.fromarray(result.astype(np.uint8), 'RGB')
-                        print(f"  🤖 AI Background Removal: Kombinace rembg + flood-fill, výstup RGB")
+                        img = Image.fromarray(arr, 'RGBA')
+                        print(f"  🤖 AI Background Removal: Alpha = max(rembg, flood-fill), výstup RGBA")
                     except ImportError:
                         print(f"  ⚠️ rembg není nainstalované, přeskakuji AI background removal")
                     except Exception as e:
