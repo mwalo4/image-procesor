@@ -607,8 +607,10 @@ class UniversalProcessor:
                         # Kombinovaná maska:
                         # - rembg produkt (alpha > 0.5): použij rembg alpha (hladké hrany)
                         # - flood-fill produkt ALE rembg odstranil (alpha < 0.5): obnov z originálu
+                        #   ALE jen pokud pixel není čistě bílý (pozadí=~255, produkt=~240-250)
                         combined_alpha = rembg_alpha.copy()
-                        rembg_missed = flood_product & (rembg_alpha < 0.5)
+                        orig_brightness = np.mean(np.array(original_rgb), axis=2)
+                        rembg_missed = flood_product & (rembg_alpha < 0.5) & (orig_brightness < 252)
                         combined_alpha[rembg_missed] = 1.0
 
                         # Kompozice proti cílovému pozadí
